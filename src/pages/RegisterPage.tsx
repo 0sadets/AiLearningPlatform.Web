@@ -1,12 +1,13 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { AxiosError } from 'axios'
-import { login } from '../api/authApi'
-import { Link } from 'react-router-dom'
+import { register } from '../api/authApi'
 
-function LoginPage() {
+function RegisterPage() {
   const navigate = useNavigate()
 
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
 
@@ -22,7 +23,9 @@ function LoginPage() {
     setIsLoading(true)
 
     try {
-      const response = await login({
+      const response = await register({
+        firstName,
+        lastName,
         email,
         password,
       })
@@ -34,7 +37,7 @@ function LoginPage() {
       if (error instanceof AxiosError) {
         setError(
           error.response?.data?.message ??
-            'Неправильний email або пароль.',
+            'Не вдалося зареєструвати користувача.',
         )
       } else {
         setError('Сталася невідома помилка.')
@@ -53,7 +56,7 @@ function LoginPage() {
           <h1>LearnAI</h1>
 
           <p>
-            Навчальна платформа для викладачів та студентів
+            Створіть обліковий запис і почніть роботу з навчальною платформою
           </p>
         </div>
       </div>
@@ -61,14 +64,46 @@ function LoginPage() {
       <div className="auth-form-section">
         <div className="auth-form-container">
           <div className="auth-form-header">
-            <h2>Вхід</h2>
-            <p>Увійдіть у свій обліковий запис</p>
+            <h2>Реєстрація</h2>
+            <p>Створіть новий обліковий запис</p>
           </div>
 
           <form
             className="auth-form"
             onSubmit={handleSubmit}
           >
+            <div className="form-group">
+              <label htmlFor="firstName">
+                Ім&apos;я
+              </label>
+
+              <input
+                id="firstName"
+                type="text"
+                value={firstName}
+                onChange={(event) =>
+                  setFirstName(event.target.value)
+                }
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="lastName">
+                Прізвище
+              </label>
+
+              <input
+                id="lastName"
+                type="text"
+                value={lastName}
+                onChange={(event) =>
+                  setLastName(event.target.value)
+                }
+                required
+              />
+            </div>
+
             <div className="form-group">
               <label htmlFor="email">
                 Email
@@ -114,14 +149,16 @@ function LoginPage() {
               className="primary-button"
               disabled={isLoading}
             >
-              {isLoading ? 'Вхід...' : 'Увійти'}
+              {isLoading
+                ? 'Створення акаунта...'
+                : 'Зареєструватися'}
             </button>
           </form>
 
           <p className="auth-footer">
-            Ще немає облікового запису?{' '}
-            <Link to="/register">
-              Зареєструватися
+            Уже маєте обліковий запис?{' '}
+            <Link to="/login">
+              Увійти
             </Link>
           </p>
         </div>
@@ -130,4 +167,4 @@ function LoginPage() {
   )
 }
 
-export default LoginPage
+export default RegisterPage
