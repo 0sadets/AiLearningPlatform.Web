@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, Outlet, useNavigate } from 'react-router-dom'
+import { useUser } from '../context/UserContext'
 
 function MainLayout() {
   const navigate = useNavigate()
@@ -7,12 +8,15 @@ function MainLayout() {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
 
   const profileMenuRef = useRef<HTMLDivElement>(null)
-
+  const { currentUser, setCurrentUser } = useUser()
+  
   const handleLogout = () => {
     localStorage.removeItem('token')
-
+    setCurrentUser(null)
     navigate('/login')
   }
+
+ 
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -53,7 +57,18 @@ function MainLayout() {
                 setIsProfileMenuOpen((current) => !current)
               }
             >
-              OR
+              {currentUser?.avatarUrl ? (
+                <img
+                  src={currentUser.avatarUrl}
+                  alt="Профіль"
+                  className="header-avatar"
+                />
+              ) : currentUser ? (
+                `${currentUser.firstName.charAt(0)}${currentUser.lastName.charAt(0)}`
+                  .toUpperCase()
+              ) : (
+                ''
+              )}
             </button>
 
             {isProfileMenuOpen && (

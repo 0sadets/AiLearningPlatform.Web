@@ -19,7 +19,22 @@ export interface RegisterRequest {
   password: string
 }
 
-export interface CurrentUserResponse {
-  userId: string
+export interface UserProfile {
+  id: number
+  firstName: string
+  lastName: string
   email: string
+  phoneNumber: string | null
+  dateOfBirth: string | null
+  createdAt: string
+  avatarUrl: string | null
+}
+
+export interface UpdateProfileRequest {
+  firstName: string
+  lastName: string
+  phoneNumber?: string
+  dateOfBirth?: string
+  avatar?: File
+  removeAvatar: boolean
 }

@@ -2,7 +2,12 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AxiosError } from 'axios'
 import { getMyCourses } from '../api/coursesApi'
-import type { Course } from '../types/course'
+import {
+  CourseVisibility,
+  type Course,
+} from '../types/course'
+import CreateCourseModal from '../components/CreateCourseModal'
+
 
 function CoursesPage() {
   const navigate = useNavigate()
@@ -10,6 +15,16 @@ function CoursesPage() {
   const [courses, setCourses] = useState<Course[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+
+  const [isCreateModalOpen, setIsCreateModalOpen] =
+    useState(false)
+
+    const handleCourseCreated = (course: Course) => {
+  setCourses((currentCourses) => [
+    course,
+    ...currentCourses,
+  ])
+}
 
   useEffect(() => {
     const loadCourses = async () => {
@@ -62,7 +77,10 @@ function CoursesPage() {
           <p>Керуйте навчальними курсами та матеріалами</p>
         </div>
 
-        <button className="primary-button create-course-button">
+        <button
+          className="primary-button create-course-button"
+          onClick={() => setIsCreateModalOpen(true)}
+        >
           + Створити курс
         </button>
       </div>
@@ -88,7 +106,65 @@ function CoursesPage() {
 
               <div className="course-card-content">
                 <h2>{course.title}</h2>
+                  <div className="course-visibility">
+                    {course.visibility === CourseVisibility.Public ? (
+                      <>
+                        <svg
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                        >
+                          <path
+                            d="M7 10V8a5 5 0 0 1 9.5-2"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                            strokeLinecap="round"
+                          />
 
+                          <rect
+                            x="5"
+                            y="10"
+                            width="14"
+                            height="10"
+                            rx="2"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                          />
+                        </svg>
+
+                        <span>Публічний</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                        >
+                          <path
+                            d="M8 10V7a4 4 0 0 1 8 0v3"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                            strokeLinecap="round"
+                          />
+
+                          <rect
+                            x="5"
+                            y="10"
+                            width="14"
+                            height="10"
+                            rx="2"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                          />
+                        </svg>
+
+                        <span>Приватний</span>
+                      </>
+                    )}
+                  </div>
                 <p>
                   {course.description ||
                     'Опис курсу відсутній.'}
@@ -108,6 +184,12 @@ function CoursesPage() {
           ))}
         </div>
       )}
+
+      <CreateCourseModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onCreated={handleCourseCreated}
+      />
     </div>
   )
 }
