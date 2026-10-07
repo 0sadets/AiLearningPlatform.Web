@@ -5,9 +5,10 @@ import MainLayout from "../layouts/MainLayout";
 import CourseDetailsPage from "../pages/CourseDetailsPage";
 import RegisterPage from "../pages/RegisterPage";
 import ProtectedRoute from "./ProtectedRoute";
-import ProfilePage from '../pages/ProfilePage'
-import CourseSettingsPage from '../pages/CourseSettingsPage'
-
+import ProfilePage from "../pages/ProfilePage";
+import CourseSettingsPage from "../pages/CourseSettingsPage";
+import MyCoursesPage from "../pages/MyCoursesPage";
+import InvitationPage from "../pages/InvitationPage";
 function AppRoutes() {
   return (
     <Routes>
@@ -19,10 +20,15 @@ function AppRoutes() {
           <Route path="/courses" element={<CoursesPage />} />
           <Route path="/courses/:id" element={<CourseDetailsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/courses/:id/settings" element={<CourseSettingsPage />}/>
+          <Route
+            path="/courses/:id/settings"
+            element={<CourseSettingsPage />}
+          />
+          <Route path="/my-courses" element={<MyCoursesPage />} />
+          <Route path="/invitations/:token" element={<InvitationPage />} />
         </Route>
       </Route>
-      
+
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>

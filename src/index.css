@@ -295,108 +295,6 @@ a {
 }
 
 /* =========================
-   COURSES
-========================= */
-
-.course-grid {
-  display: grid;
-
-  grid-template-columns:
-    repeat(auto-fill, minmax(300px, 1fr));
-
-  gap: 22px;
-}
-
-.course-card {
-  background: white;
-
-  border: 1px solid #e5e7eb;
-  border-radius: 16px;
-
-  padding: 22px;
-
-  display: flex;
-  gap: 18px;
-  height: 100%;
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.04);
-}
-
-.course-card:hover {
-  transform: translateY(-2px);
-
-  border-color: #c7d2fe;
-
-  box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.06);
-}
-
-.course-card-icon {
-  width: 52px;
-  height: 52px;
-
-  flex-shrink: 0;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  border-radius: 14px;
-
-  background: #eef2ff;
-  color: #4f46e5;
-
-  font-size: 20px;
-  font-weight: 700;
-}
-
-.course-card-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-
-  min-width: 0;
-}
-
-.course-card-content h2 {
-  margin: 0 0 8px;
-
-  font-size: 18px;
-}
-
-.course-card-content p {
-  margin: 0;
-
-  color: #6b7280;
-
-  font-size: 14px;
-  line-height: 1.5;
-
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-
-  overflow: hidden;
-}
-
-.course-card-footer {
-  display: flex;
-  justify-content: space-between;
-
-  margin-top: auto;
-  padding-top: 20px;
-
-  color: #9ca3af;
-
-  font-size: 13px;
-}
-
-.course-link {
-  color: #4f46e5;
-  font-weight: 600;
-}
-
-/* =========================
    RESPONSIVE
 ========================= */
 
@@ -430,7 +328,7 @@ a {
 
 .form-error {
   padding: 12px 14px;
-
+  margin-top: 5px;
   border-radius: 10px;
 
   background: #fef2f2;
@@ -902,7 +800,7 @@ a {
    COURSE VISIBILITY BADGE
 ========================= */
 
-.course-visibility {
+/* .course-visibility {
   display: inline-flex;
 
   margin-bottom: 10px;
@@ -936,7 +834,7 @@ a {
 
   flex-shrink: 0;
 }
-
+ */
 
 
 @media (max-width: 600px) {

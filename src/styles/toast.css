@@ -9,56 +9,73 @@
   display: flex;
   flex-direction: column;
 
-  gap: 10px;
+  gap: 12px;
 
-  width: min(360px, calc(100vw - 32px));
+  width: min(380px, calc(100vw - 32px));
 }
 
 .toast {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
 
-  gap: 16px;
+  gap: 18px;
 
-  padding: 14px 14px 14px 16px;
+  min-height: 64px;
+  padding: 16px 18px;
 
-  background: white;
-
-  border: 1px solid #e5e7eb;
-  border-left-width: 4px;
-  border-radius: 10px;
+  border: 1px solid transparent;
+  border-radius: 12px;
 
   box-shadow:
-    0 10px 30px rgba(17, 24, 39, 0.12);
+    0 8px 24px rgba(17, 24, 39, 0.1);
 
-  animation: toast-enter 0.2s ease;
+  animation: toast-enter 0.25s ease;
 }
 
+/* SUCCESS */
 .toast-success {
-  border-left-color: #16a34a;
+  background: #ecfdf3;
+  border-color: #bbf7d0;
 }
 
+.toast-success .toast-message {
+  color: #166534;
+}
+
+/* ERROR */
 .toast-error {
-  border-left-color: #dc2626;
+  background: #fef2f2;
+  border-color: #fecaca;
 }
 
+.toast-error .toast-message {
+  color: #991b1b;
+}
+
+/* INFO */
 .toast-info {
-  border-left-color: #4f46e5;
+  background: #eef2ff;
+  border-color: #c7d2fe;
+}
+
+.toast-info .toast-message {
+  color: #3730a3;
 }
 
 .toast-message {
-  color: #374151;
+  flex: 1;
 
   font-size: 14px;
-  line-height: 1.45;
+  font-weight: 500;
+  line-height: 1.5;
 }
 
 .toast-close {
   flex-shrink: 0;
 
-  width: 26px;
-  height: 26px;
+  width: 30px;
+  height: 30px;
 
   display: flex;
   align-items: center;
@@ -67,32 +84,37 @@
   padding: 0;
 
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
 
   background: transparent;
 
-  color: #9ca3af;
+  color: currentColor;
+  opacity: 0.55;
 
   font-size: 20px;
   line-height: 1;
 
   cursor: pointer;
+
+  transition:
+    background 0.15s ease,
+    opacity 0.15s ease;
 }
 
 .toast-close:hover {
-  background: #f3f4f6;
-  color: #374151;
+  background: rgba(255, 255, 255, 0.55);
+  opacity: 0.9;
 }
 
 @keyframes toast-enter {
   from {
     opacity: 0;
-    transform: translateY(-8px);
+    transform: translateY(-10px) scale(0.98);
   }
 
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -103,5 +125,10 @@
     left: 16px;
 
     width: auto;
+  }
+
+  .toast {
+    min-height: 60px;
+    padding: 14px 16px;
   }
 }

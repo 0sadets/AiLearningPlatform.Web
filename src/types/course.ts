@@ -15,10 +15,15 @@ export interface Course {
   createdAt: string
   isArchived: boolean
   visibility: CourseVisibility
+
+  imageUrl: string | null
+
+
+  isEnrolled: boolean
+  isOwner: boolean
 }
 
 export interface CourseDetails extends Course {
-  imageUrl: string | null
   studentsCount: number
   materialsCount: number
   testsCount: number

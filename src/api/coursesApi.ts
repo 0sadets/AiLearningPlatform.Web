@@ -22,6 +22,14 @@ export const getMyCourses = async (): Promise<Course[]> => {
   return response.data
 }
 
+export const getPublicCourses = async (): Promise<Course[]> => {
+  const response = await api.get<Course[]>(
+    '/api/courses/all-public',
+  )
+
+  return response.data
+}
+
 export const getCourseById = async (
   id: number,
 ): Promise<CourseDetails> => {

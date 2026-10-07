@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { AxiosError } from "axios";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useToast } from "../context/ToastContext";
-
+import ConfirmArchiveModal from "../components/ConfirmArchiveModal";
 import {
   archiveCourse,
   deleteCourseImage,
@@ -35,6 +35,8 @@ function CourseSettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
+
+  const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
 
   useEffect(() => {
     const loadCourse = async () => {
@@ -117,71 +119,74 @@ function CourseSettingsPage() {
 
       navigate(`/courses/${course.id}`);
     } catch (error) {
-     if (error instanceof AxiosError) {
+      if (error instanceof AxiosError) {
         showToast(
-            error.response?.data?.message ??
-            "Не вдалося зберегти зміни.",
-            "error",
-        )
-        } else {
-        showToast(
-            "Сталася невідома помилка.",
-            "error",
-        )
-        }
+          error.response?.data?.message ?? "Не вдалося зберегти зміни.",
+          "error",
+        );
+      } else {
+        showToast("Сталася невідома помилка.", "error");
+      }
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleDeleteImage = async () => {
-  if (!course) {
-    return
-  }
+    if (!course) {
+      return;
+    }
 
-  try {
-    await deleteCourseImage(course.id)
+    try {
+      await deleteCourseImage(course.id);
 
-    setCourse({
-      ...course,
-      imageUrl: null,
-    })
+      setCourse({
+        ...course,
+        imageUrl: null,
+      });
 
-    setImagePreview(null)
-    setSelectedImage(null)
+      setImagePreview(null);
+      setSelectedImage(null);
 
-    showToast(
-      "Зображення курсу видалено.",
-      "success",
-    )
-  } catch {
-    showToast(
-      "Не вдалося видалити зображення.",
-      "error",
-    )
-  }
-}
+      showToast("Зображення курсу видалено.", "success");
+    } catch {
+      showToast("Не вдалося видалити зображення.", "error");
+    }
+  };
 
   const handleArchive = async () => {
     if (!course) {
       return;
     }
 
-    const confirmed = window.confirm("Архівувати цей курс?");
+    const handleArchive = async () => {
+      if (!course) {
+        return;
+      }
 
-    if (!confirmed) {
-      return;
-    }
+      setIsArchiving(true);
+
+      try {
+        await archiveCourse(course.id);
+
+        showToast("Курс архівовано.", "success");
+
+        setIsArchiveModalOpen(false);
+
+        navigate("/courses");
+      } catch {
+        showToast("Не вдалося архівувати курс.", "error");
+      } finally {
+        setIsArchiving(false);
+      }
+    };
 
     setIsArchiving(true);
 
     try {
       await archiveCourse(course.id);
 
-        showToast(
-            "Курс архівовано.",
-            "success",
-        )
+      showToast("Курс архівовано.", "success");
       navigate("/courses");
     } catch {
       //setError('Не вдалося архівувати курс.')
@@ -316,8 +321,6 @@ function CourseSettingsPage() {
           </div>
         </section>
 
-      
-
         <div className="settings-save-row">
           <button type="submit" className="primary-button" disabled={isSaving}>
             {isSaving ? "Збереження..." : "Зберегти зміни"}
@@ -338,12 +341,18 @@ function CourseSettingsPage() {
         <button
           type="button"
           className="archive-button"
-          onClick={handleArchive}
-          disabled={isArchiving}
+          onClick={() => setIsArchiveModalOpen(true)}
         >
-          {isArchiving ? "Архівування..." : "Архівувати курс"}
+          Архівувати курс
         </button>
       </section>
+
+      <ConfirmArchiveModal
+        isOpen={isArchiveModalOpen}
+        isArchiving={isArchiving}
+        onCancel={() => setIsArchiveModalOpen(false)}
+        onConfirm={handleArchive}
+      />
     </div>
   );
 }

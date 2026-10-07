@@ -216,3 +216,27 @@
     flex-wrap: wrap;
   }
 }
+
+/* кнопка архівувати */
+.archive-confirm-button {
+  padding: 10px 16px;
+
+  border: none;
+  border-radius: 9px;
+
+  background: #b45309;
+  color: white;
+
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+.archive-confirm-button:hover {
+  background: #92400e;
+}
+
+.archive-confirm-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
