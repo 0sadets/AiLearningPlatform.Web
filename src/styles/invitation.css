@@ -1,0 +1,147 @@
+.invitation-page {
+  min-height: calc(100vh - 70px);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 32px 20px;
+
+  background: #f9fafb;
+}
+
+.invitation-page-card {
+  width: min(620px, 100%);
+
+  padding: 36px;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+
+  background: white;
+
+  box-shadow:
+    0 12px 35px rgba(17, 24, 39, 0.08);
+
+  text-align: center;
+}
+
+.invitation-page-icon {
+  width: 56px;
+  height: 56px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin: 0 auto 18px;
+
+  border-radius: 14px;
+
+  background: #eef2ff;
+
+  color: #4f46e5;
+}
+
+.invitation-page-card h1 {
+  margin: 16px 0 8px;
+
+  color: #111827;
+
+  font-size: 25px;
+}
+
+.invitation-page-card h2 {
+  margin: 0;
+
+  color: #4f46e5;
+
+  font-size: 20px;
+}
+
+.invitation-page-description {
+  margin: 18px auto 0;
+
+  max-width: 500px;
+
+  color: #6b7280;
+
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.invitation-page-meta {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+
+  gap: 12px;
+
+  margin-top: 28px;
+}
+
+.invitation-page-meta > div {
+  padding: 16px;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+
+  background: #fafafa;
+}
+
+.invitation-page-meta span {
+  display: block;
+
+  margin-bottom: 5px;
+
+  color: #9ca3af;
+
+  font-size: 12px;
+}
+
+.invitation-page-meta strong {
+  color: #374151;
+
+  font-size: 14px;
+}
+
+.invitation-page-status {
+  display: inline-flex;
+
+  padding: 6px 10px;
+
+  border-radius: 999px;
+
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.invitation-page-status-1 {
+  background: #fffbeb;
+  color: #d97706;
+}
+
+.invitation-page-status-2 {
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
+.invitation-page-status-3 {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.invitation-page-status-4,
+.invitation-page-status-5 {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+@media (max-width: 640px) {
+  .invitation-page-card {
+    padding: 24px;
+  }
+
+  .invitation-page-meta {
+    grid-template-columns: 1fr;
+  }
+}

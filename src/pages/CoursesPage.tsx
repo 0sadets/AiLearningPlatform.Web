@@ -1,115 +1,100 @@
-import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { AxiosError } from 'axios'
-import { getMyCourses } from '../api/coursesApi'
-import type { Course } from '../types/course'
+import { useEffect, useState } from "react";
+import { AxiosError } from "axios";
+import { BookOpen, Search, SlidersHorizontal } from "lucide-react";
+
+import CourseCard from "../components/CourseCard";
+
+import { getPublicCourses } from "../api/coursesApi";
+
+import type { Course } from "../types/course";
+
+import { useToast } from "../context/ToastContext";
+
+import "../styles/courses.css";
 
 function CoursesPage() {
-  const navigate = useNavigate()
+  const { showToast } = useToast();
 
-  const [courses, setCourses] = useState<Course[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [courses, setCourses] = useState<Course[]>([]);
+
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const loadCourses = async () => {
-      try {
-        const data = await getMyCourses()
+      setIsLoading(true);
 
-        setCourses(data)
+      try {
+        const data = await getPublicCourses();
+
+        setCourses(data);
       } catch (error) {
-        if (
-          error instanceof AxiosError &&
-          error.response?.status === 401
-        ) {
-          localStorage.removeItem('token')
-          navigate('/login')
-          return
+        if (error instanceof AxiosError && error.response?.status === 401) {
+          localStorage.removeItem("token");
+          window.location.href = "/login";
+          return;
         }
 
-        setError('Не вдалося завантажити курси.')
+        showToast("Не вдалося завантажити публічні курси.", "error");
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
+    };
 
-    loadCourses()
-  }, [navigate])
-
-  if (isLoading) {
-    return (
-      <div className="page">
-        <p>Завантаження курсів...</p>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="page">
-        <div className="form-error">
-          {error}
-        </div>
-      </div>
-    )
-  }
+    loadCourses();
+  }, [showToast]);
 
   return (
     <div className="page">
       <div className="page-header">
         <div>
-          <h1>Мої курси</h1>
-          <p>Керуйте навчальними курсами та матеріалами</p>
+          <h1>Курси</h1>
+
+          <p>Знаходьте навчальні курси та приєднуйтеся до них</p>
+        </div>
+      </div>
+
+      <div className="catalog-toolbar">
+        <div className="catalog-search">
+          <Search size={18} />
+
+          <input type="text" placeholder="Пошук курсів..." disabled />
         </div>
 
-        <button className="primary-button create-course-button">
-          + Створити курс
+        <button type="button" className="catalog-filter-button" disabled>
+          <SlidersHorizontal size={17} />
+          Фільтри
         </button>
       </div>
 
-      {courses.length === 0 ? (
-        <div className="empty-state">
-          <h3>Курсів поки немає</h3>
-          <p>
-            Створіть перший курс, щоб почати роботу.
-          </p>
+      <section className="catalog-section">
+        <div className="catalog-section-header">
+          <div>
+            <h2>Усі курси</h2>
+
+            <p>Доступні публічні навчальні курси</p>
+          </div>
         </div>
-      ) : (
-        <div className="course-grid">
-          {courses.map((course) => (
-            <Link
-              to={`/courses/${course.id}`}
-              key={course.id}
-              className="course-card"
-            >
-              <div className="course-card-icon">
-                {course.title.charAt(0).toUpperCase()}
-              </div>
 
-              <div className="course-card-content">
-                <h2>{course.title}</h2>
+        {isLoading ? (
+          <p>Завантаження курсів...</p>
+        ) : courses.length === 0 ? (
+          <div className="catalog-empty">
+            <BookOpen size={34} />
 
-                <p>
-                  {course.description ||
-                    'Опис курсу відсутній.'}
-                </p>
+            <h3>Каталог курсів поки порожній</h3>
 
-                <div className="course-card-footer">
-                  <span>
-                    {course.createdByUserName}
-                  </span>
-
-                  <span className="course-link">
-                    Відкрити →
-                  </span>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
+            <p>Публічні курси з'являться тут, коли викладачі їх опублікують.</p>
+          </div>
+        ) : (
+          <div className="course-grid">
+            {courses.map((course) => (
+              <CourseCard key={course.id} course={course} />
+            ))}
+          </div>
+        )}
+      </section>
     </div>
-  )
+  );
 }
 
-export default CoursesPage
+export default CoursesPage;

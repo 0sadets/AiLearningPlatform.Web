@@ -1,18 +1,20 @@
-import { useEffect, useRef, useState } from 'react'
-import { Link, Outlet, useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from "react";
+import { Link, Outlet, useNavigate } from "react-router-dom";
+import { useUser } from "../context/UserContext";
 
 function MainLayout() {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
-  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
-  const profileMenuRef = useRef<HTMLDivElement>(null)
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+  const { currentUser, setCurrentUser } = useUser();
 
   const handleLogout = () => {
-    localStorage.removeItem('token')
-
-    navigate('/login')
-  }
+    localStorage.removeItem("token");
+    setCurrentUser(null);
+    navigate("/login");
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -20,16 +22,16 @@ function MainLayout() {
         profileMenuRef.current &&
         !profileMenuRef.current.contains(event.target as Node)
       ) {
-        setIsProfileMenuOpen(false)
+        setIsProfileMenuOpen(false);
       }
-    }
+    };
 
-    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener("mousedown", handleClickOutside);
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [])
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   return (
     <div className="app-layout">
@@ -39,21 +41,26 @@ function MainLayout() {
         </Link>
 
         <nav className="app-nav">
-          <Link to="/courses">
-            Курси
-          </Link>
+          <Link to="/courses">Курси</Link>
 
-          <div
-            className="profile-menu-wrapper"
-            ref={profileMenuRef}
-          >
+          <Link to="/my-courses">Мої курси</Link>
+
+          <div className="profile-menu-wrapper" ref={profileMenuRef}>
             <button
               className="profile-button"
-              onClick={() =>
-                setIsProfileMenuOpen((current) => !current)
-              }
+              onClick={() => setIsProfileMenuOpen((current) => !current)}
             >
-              OR
+              {currentUser?.avatarUrl ? (
+                <img
+                  src={currentUser.avatarUrl}
+                  alt="Профіль"
+                  className="header-avatar"
+                />
+              ) : currentUser ? (
+                `${currentUser.firstName.charAt(0)}${currentUser.lastName.charAt(0)}`.toUpperCase()
+              ) : (
+                ""
+              )}
             </button>
 
             {isProfileMenuOpen && (
@@ -61,8 +68,8 @@ function MainLayout() {
                 <button
                   className="profile-dropdown-item"
                   onClick={() => {
-                    setIsProfileMenuOpen(false)
-                    navigate('/profile')
+                    setIsProfileMenuOpen(false);
+                    navigate("/profile");
                   }}
                 >
                   Мій кабінет
@@ -86,7 +93,7 @@ function MainLayout() {
         <Outlet />
       </main>
     </div>
-  )
+  );
 }
 
-export default MainLayout
+export default MainLayout;
