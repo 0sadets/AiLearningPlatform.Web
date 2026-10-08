@@ -155,31 +155,9 @@ function CourseSettingsPage() {
   };
 
   const handleArchive = async () => {
-    if (!course) {
+    if (!course || isArchiving) {
       return;
     }
-
-    const handleArchive = async () => {
-      if (!course) {
-        return;
-      }
-
-      setIsArchiving(true);
-
-      try {
-        await archiveCourse(course.id);
-
-        showToast("Курс архівовано.", "success");
-
-        setIsArchiveModalOpen(false);
-
-        navigate("/courses");
-      } catch {
-        showToast("Не вдалося архівувати курс.", "error");
-      } finally {
-        setIsArchiving(false);
-      }
-    };
 
     setIsArchiving(true);
 
@@ -187,11 +165,19 @@ function CourseSettingsPage() {
       await archiveCourse(course.id);
 
       showToast("Курс архівовано.", "success");
-      navigate("/courses");
-    } catch {
-      //setError('Не вдалося архівувати курс.')
 
-      showToast("Не вдалося архівувати курс.", "error");
+      setIsArchiveModalOpen(false);
+
+      navigate("/courses");
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        showToast(
+          error.response?.data?.message ?? "Не вдалося архівувати курс.",
+          "error",
+        );
+      } else {
+        showToast("Не вдалося архівувати курс.", "error");
+      }
     } finally {
       setIsArchiving(false);
     }
