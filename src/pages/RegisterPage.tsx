@@ -1,26 +1,34 @@
-import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
-import { AxiosError } from 'axios'
-import { register } from '../api/authApi'
+import { useState } from "react";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
+import { AxiosError } from "axios";
+import { register } from "../api/authApi";
 
 function RegisterPage() {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const requestedReturnUrl = searchParams.get("returnUrl");
 
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState('')
+  const returnUrl =
+    requestedReturnUrl?.startsWith("/") &&
+    !requestedReturnUrl.startsWith("//") &&
+    !requestedReturnUrl.startsWith("/\\")
+      ? requestedReturnUrl
+      : "/courses";
 
-  const handleSubmit = async (
-    event: React.FormEvent<HTMLFormElement>,
-  ) => {
-    event.preventDefault()
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
-    setError('')
-    setIsLoading(true)
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    setError("");
+    setIsLoading(true);
 
     try {
       const response = await register({
@@ -28,24 +36,26 @@ function RegisterPage() {
         lastName,
         email,
         password,
-      })
+      });
 
-      localStorage.setItem('token', response.token)
+      localStorage.setItem("token", response.token);
 
-      navigate('/courses')
+      navigate(returnUrl, {
+        replace: true,
+      });
     } catch (error) {
       if (error instanceof AxiosError) {
         setError(
           error.response?.data?.message ??
-            'Не вдалося зареєструвати користувача.',
-        )
+            "Не вдалося зареєструвати користувача.",
+        );
       } else {
-        setError('Сталася невідома помилка.')
+        setError("Сталася невідома помилка.");
       }
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <div className="auth-page">
@@ -68,103 +78,82 @@ function RegisterPage() {
             <p>Створіть новий обліковий запис</p>
           </div>
 
-          <form
-            className="auth-form"
-            onSubmit={handleSubmit}
-          >
+          <form className="auth-form" onSubmit={handleSubmit}>
             <div className="form-group">
-              <label htmlFor="firstName">
-                Ім&apos;я
-              </label>
+              <label htmlFor="firstName">Ім&apos;я</label>
 
               <input
                 id="firstName"
                 type="text"
                 value={firstName}
-                onChange={(event) =>
-                  setFirstName(event.target.value)
-                }
+                onChange={(event) => setFirstName(event.target.value)}
                 required
               />
             </div>
 
             <div className="form-group">
-              <label htmlFor="lastName">
-                Прізвище
-              </label>
+              <label htmlFor="lastName">Прізвище</label>
 
               <input
                 id="lastName"
                 type="text"
                 value={lastName}
-                onChange={(event) =>
-                  setLastName(event.target.value)
-                }
+                onChange={(event) => setLastName(event.target.value)}
                 required
               />
             </div>
 
             <div className="form-group">
-              <label htmlFor="email">
-                Email
-              </label>
+              <label htmlFor="email">Email</label>
 
               <input
                 id="email"
                 type="email"
                 placeholder="example@email.com"
                 value={email}
-                onChange={(event) =>
-                  setEmail(event.target.value)
-                }
+                onChange={(event) => setEmail(event.target.value)}
                 required
               />
             </div>
 
             <div className="form-group">
-              <label htmlFor="password">
-                Пароль
-              </label>
+              <label htmlFor="password">Пароль</label>
 
               <input
                 id="password"
                 type="password"
                 placeholder="Введіть пароль"
                 value={password}
-                onChange={(event) =>
-                  setPassword(event.target.value)
-                }
+                onChange={(event) => setPassword(event.target.value)}
                 required
               />
             </div>
 
-            {error && (
-              <div className="form-error">
-                {error}
-              </div>
-            )}
+            {error && <div className="form-error">{error}</div>}
 
             <button
               type="submit"
               className="primary-button"
               disabled={isLoading}
             >
-              {isLoading
-                ? 'Створення акаунта...'
-                : 'Зареєструватися'}
+              {isLoading ? "Створення акаунта..." : "Зареєструватися"}
             </button>
           </form>
 
           <p className="auth-footer">
-            Уже маєте обліковий запис?{' '}
-            <Link to="/login">
-              Увійти
-            </Link>
+            Уже маєте обліковий запис? 
+            <Link
+            to={`/login?returnUrl=${encodeURIComponent(
+              returnUrl,
+            )}`}
+          >
+            Увійти
+          </Link>
           </p>
         </div>
       </div>
     </div>
-  )
+  );
 }
 
-export default RegisterPage
+export default RegisterPage;

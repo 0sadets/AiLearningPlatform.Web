@@ -145,3 +145,124 @@
     grid-template-columns: 1fr;
   }
 }
+
+/*  */
+.invitation-page-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+
+  margin-top: 28px;
+}
+
+.invitation-page-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  min-height: 44px;
+  padding: 12px 20px;
+}
+
+.invitation-page-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.invitation-auth-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+
+  padding: 16px;
+  margin-top: 24px;
+
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 10px;
+
+  color: #3730a3;
+}
+
+
+.invitation-auth-notice p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.invitation-auth-notice svg {
+  flex-shrink: 0;
+}
+
+.invitation-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+
+  margin-top: 28px;
+  padding: 20px;
+
+  background: #f0fdf4;
+  border-radius: 10px;
+
+  text-align: center;
+}
+
+.invitation-result p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.invitation-result svg {
+  color: #16a34a;
+}
+
+.invitation-result .primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.invitation-course-link {
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.invitation-course-link:hover {
+  color: #4f46e5;
+  text-decoration: underline;
+}
+
+.invitation-page-back {
+  display: inline-block;
+  margin-top: 24px;
+
+  color: #6b7280;
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.invitation-page-back:hover {
+  color: #4f46e5;
+}
+
+@media (max-width: 480px) {
+  .invitation-page-actions {
+    flex-direction: column;
+  }
+
+  .invitation-page-actions button {
+    width: 100%;
+  }
+}
+
+.invitation-result-declined {
+  background: #f9fafb;
+  color: #6b7280;
+}
