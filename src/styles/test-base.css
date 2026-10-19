@@ -1,0 +1,202 @@
+/* Shared visual language for the Ilearn test authoring pages. */
+.test-create-page,
+.test-editor-page {
+  padding-bottom: 72px;
+}
+
+.test-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 25px;
+  color: #6b7280;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+.test-back-link:hover { color: #4f46e5; }
+
+.test-page-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  margin-bottom: 28px;
+}
+.test-page-heading-icon {
+  flex: 0 0 54px;
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  color: #4f46e5;
+  background: #eef2ff;
+  border-radius: 15px;
+}
+.test-eyebrow {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: #6366f1;
+  margin-bottom: 6px;
+}
+.test-page-heading h1 {
+  margin: 0 0 7px;
+  font-size: clamp(24px, 3vw, 30px);
+  font-weight: 750;
+  color: #111827;
+  line-height: 1.25;
+}
+.test-page-heading p { margin: 0; color: #6b7280; font-size: 14px; line-height: 1.6; }
+.test-page-notice {
+  padding: 26px;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background: white;
+  font-size: 14px;
+  color: #6b7280;
+}
+.test-page-notice--error { border-color: #fecaca; color: #b91c1c; background: #fffafa; }
+
+.test-panel {
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  border-radius: 16px;
+  padding: 26px;
+}
+.test-panel-heading { margin-bottom: 24px; }
+.test-panel-heading h2,
+.test-editor-summary h2,
+.test-editor-management h2 { margin: 0 0 7px; font-size: 19px; font-weight: 700; color: #111827; }
+.test-panel-heading p { margin: 0; font-size: 14px; color: #6b7280; line-height: 1.6; }
+
+.test-settings-fields { display: flex; flex-direction: column; gap: 22px; }
+.test-field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.test-field-label { color: #374151; font-size: 13px; font-weight: 650; }
+.test-field-label span { color: #dc2626; }
+.test-field input,
+.test-field textarea,
+.test-field select,
+.test-option-text-input {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  padding: 11px 13px;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #111827;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 9px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.test-field textarea { resize: vertical; min-height: 95px; }
+.test-field input:focus,
+.test-field textarea:focus,
+.test-field select:focus,
+.test-option-text-input:focus {
+  border-color: #818cf8;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+.test-field input:disabled,
+.test-field textarea:disabled,
+.test-field select:disabled,
+.test-option-text-input:disabled {
+  color: #6b7280;
+  background: #f9fafb;
+  cursor: default;
+}
+.test-field small { align-self: flex-end; font-size: 11px; color: #9ca3af; }
+.test-settings-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.test-setting-box {
+  display: flex;
+  flex-direction: column;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fcfcfd;
+
+  padding: 18px;
+  min-width: 0;
+}
+.test-check-label { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; font-size: 14px; font-weight: 650; color: #1f2937; }
+.test-check-label input { width: 17px; height: 17px; margin: 1px 0 0; accent-color: #4f46e5; flex-shrink: 0; }
+.test-setting-box p { margin: 10px 0 0; font-size: 12px; line-height: 1.55; color: #6b7280; }
+.test-setting-input {
+  margin-top: auto;
+  padding-top: 16px;
+}
+
+.test-setting-input input {
+  min-height: 46px;
+}
+.test-form-footnote {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-top: 23px;
+  padding: 13px 15px;
+  border-radius: 9px;
+  color: #4f46e5;
+  background: #eef2ff;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.test-form-footnote svg { flex-shrink: 0; }
+.test-form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+
+.test-btn {
+  box-sizing: border-box;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 17px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
+  line-height: 1.25;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.test-btn--primary { background: #4f46e5; color: white; border-color: #4f46e5; }
+.test-btn--primary:hover:not(:disabled) { background: #4338ca; border-color: #4338ca; }
+.test-btn--secondary { background: #fff; border-color: #d1d5db; color: #374151; }
+.test-btn--secondary:hover:not(:disabled) { border-color: #a5b4fc; background: #f8f9ff; color: #4f46e5; }
+.test-btn--danger { color: white; background: #dc2626; border-color: #dc2626; }
+.test-btn--danger:hover:not(:disabled) { background: #b91c1c; }
+.test-btn--danger-outline { color: #dc2626; border-color: #fecaca; background: white; }
+.test-btn--danger-outline:hover:not(:disabled) { background: #fff1f2; }
+.test-btn:disabled { opacity: 0.53; cursor: not-allowed; }
+.test-btn--full { width: 100%; }
+.test-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+}
+.test-icon-btn:hover:not(:disabled) { background: #f3f4f6; color: #374151; }
+.test-icon-btn--danger:hover:not(:disabled) { color: #dc2626; background: #fef2f2; }
+.test-icon-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+@media (max-width: 700px) {
+  .test-panel { padding: 18px; }
+  .test-settings-pair { grid-template-columns: 1fr; }
+  .test-page-heading { gap: 12px; }
+  .test-page-heading-icon { flex-basis: 44px; width: 44px; height: 44px; }
+  .test-form-actions { flex-wrap: wrap; }
+  .test-form-actions .test-btn { flex: 1 1 150px; }
+}

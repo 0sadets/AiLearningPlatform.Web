@@ -1,0 +1,4 @@
+@import "./test-base.css";
+
+.test-create-form { max-width: 860px; }
+.test-create-page .test-page-heading { max-width: 860px; }
