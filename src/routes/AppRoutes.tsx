@@ -9,6 +9,17 @@ import ProfilePage from "../pages/ProfilePage";
 import CourseSettingsPage from "../pages/CourseSettingsPage";
 import MyCoursesPage from "../pages/MyCoursesPage";
 import InvitationPage from "../pages/InvitationPage";
+import CreateTestPage from "../pages/CreateTestPage";
+import TestEditorPage from "../pages/TestEditorPage";
+
+import TestDetailsPage from "../pages/TestDetailsPage";
+import TestTakingPage from "../pages/TestTakingPage";
+import TestResultPage from "../pages/TestResultPage";
+
+import TeacherTestResultsPage from "../pages/TeacherTestResultsPage";
+import TeacherAttemptDetailsPage from "../pages/TeacherAttemptDetailsPage";
+
+
 function AppRoutes() {
   return (
     <Routes>
@@ -26,6 +37,34 @@ function AppRoutes() {
           />
           <Route path="/my-courses" element={<MyCoursesPage />} />
           <Route path="/invitations/:token" element={<InvitationPage />} />
+
+          <Route
+            path="/courses/:courseId/tests/create"
+            element={<CreateTestPage />}
+          />
+
+          <Route path="/tests/:testId/edit" element={<TestEditorPage />} />
+          <Route path="/tests/:testId" element={<TestDetailsPage />} />
+
+          <Route
+            path="/tests/:testId/attempts/:attemptId"
+            element={<TestTakingPage />}
+          />
+
+          <Route
+            path="/attempts/:attemptId/result"
+            element={<TestResultPage />}
+          />
+<Route
+  path="/tests/:testId/results"
+  element={<TeacherTestResultsPage />}
+/>
+
+<Route
+  path="/attempts/:attemptId/details"
+  element={<TeacherAttemptDetailsPage />}
+/>
+
         </Route>
       </Route>
 

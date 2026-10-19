@@ -5,6 +5,13 @@ import { useUser } from "../context/UserContext";
 import type { UserProfile } from "../types/auth";
 import { useToast } from "../context/ToastContext";
 
+import {
+  validateName,
+  validatePhone,
+  validateDateOfBirth,
+  validateAvatar,
+} from "../utils/profileValidation";
+
 function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
 
@@ -52,20 +59,31 @@ function ProfilePage() {
     loadProfile();
   }, []);
 
-  const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
 
-    if (!file) {
-      return;
-    }
+const handleAvatarChange = (
+  event: React.ChangeEvent<HTMLInputElement>,
+) => {
+  const file = event.target.files?.[0];
 
-    setAvatar(file);
-    setRemoveAvatar(false);
+  if (!file) return;
 
-    const previewUrl = URL.createObjectURL(file);
+  const validationError = validateAvatar(file);
 
-    setAvatarPreview(previewUrl);
-  };
+  if (validationError) {
+    showToast(validationError, "error");
+    event.target.value = "";
+    return;
+  }
+
+  setAvatar(file);
+  setRemoveAvatar(false);
+
+  const previewUrl = URL.createObjectURL(file);
+  setAvatarPreview(previewUrl);
+
+  event.target.value = "";
+};
+
 
   const handleRemoveAvatar = () => {
     setAvatar(undefined);
@@ -73,57 +91,64 @@ function ProfilePage() {
     setRemoveAvatar(true);
   };
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
 
-    // setError('')
-    // setSuccess("");
-    setIsSaving(true);
+const handleSubmit = async (
+  event: React.FormEvent<HTMLFormElement>,
+) => {
+  event.preventDefault();
 
-    try {
-      const updatedProfile = await updateProfile({
-        firstName,
-        lastName,
-        phoneNumber,
-        dateOfBirth,
-        avatar,
-        removeAvatar,
-      });
+  const validationError =
+    validateName(firstName, "Ім'я") ??
+    validateName(lastName, "Прізвище") ??
+    validatePhone(phoneNumber) ??
+    validateDateOfBirth(dateOfBirth);
 
-      setProfile(updatedProfile);
+  if (validationError) {
+    showToast(validationError, "error");
+    return;
+  }
 
-      setCurrentUser(updatedProfile);
+  setIsSaving(true);
 
-      setFirstName(updatedProfile.firstName);
-      setLastName(updatedProfile.lastName);
-      setPhoneNumber(updatedProfile.phoneNumber ?? "");
-      setDateOfBirth(updatedProfile.dateOfBirth ?? "");
+  try {
+    const updatedProfile = await updateProfile({
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      phoneNumber: phoneNumber.trim(),
+      dateOfBirth,
+      avatar,
+      removeAvatar,
+    });
 
-      setAvatarPreview(updatedProfile.avatarUrl);
+    setProfile(updatedProfile);
+    setCurrentUser(updatedProfile);
 
-      setAvatar(undefined);
-      setRemoveAvatar(false);
+    setFirstName(updatedProfile.firstName);
+    setLastName(updatedProfile.lastName);
+    setPhoneNumber(updatedProfile.phoneNumber ?? "");
+    setDateOfBirth(updatedProfile.dateOfBirth ?? "");
 
-      // setSuccess("Профіль успішно оновлено.");
-      showToast("Профіль успішно оновлено.", "success");
-    } catch (error) {
-      if (error instanceof AxiosError) {
-        // setError(
-        //   error.response?.data?.message ??
-        //     'Не вдалося оновити профіль.',
-        // )
-        showToast(
-          error.response?.data?.message ?? "Не вдалося оновити профіль.",
-          "error",
-        );
-      } else {
-        // setError('Сталася невідома помилка.')
-        showToast("Сталася невідома помилка.", "error");
-      }
-    } finally {
-      setIsSaving(false);
+    setAvatarPreview(updatedProfile.avatarUrl);
+
+    setAvatar(undefined);
+    setRemoveAvatar(false);
+
+    showToast("Профіль успішно оновлено.", "success");
+  } catch (error) {
+    if (error instanceof AxiosError) {
+      showToast(
+        error.response?.data?.message ??
+          "Не вдалося оновити профіль.",
+        "error",
+      );
+    } else {
+      showToast("Сталася невідома помилка.", "error");
     }
-  };
+  } finally {
+    setIsSaving(false);
+  }
+};
+
 
   if (isLoading) {
     return (
@@ -142,6 +167,15 @@ function ProfilePage() {
   }
 
   const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+
+const today = new Date();
+const localToday = [
+  today.getFullYear(),
+  String(today.getMonth() + 1).padStart(2, "0"),
+  String(today.getDate()).padStart(2, "0"),
+].join("-");
+
+
 
   return (
     <div className="page profile-page">
@@ -194,6 +228,9 @@ function ProfilePage() {
                 id="firstName"
                 value={firstName}
                 onChange={(event) => setFirstName(event.target.value)}
+                  minLength={2}
+  maxLength={100}
+  autoComplete="given-name"
                 required
               />
             </div>
@@ -205,6 +242,9 @@ function ProfilePage() {
                 id="lastName"
                 value={lastName}
                 onChange={(event) => setLastName(event.target.value)}
+                  minLength={2}
+  maxLength={100}
+  autoComplete="family-name"
                 required
               />
             </div>
@@ -218,24 +258,40 @@ function ProfilePage() {
             <div className="form-group">
               <label htmlFor="phoneNumber">Номер телефону</label>
 
-              <input
-                id="phoneNumber"
-                type="tel"
-                placeholder="+380..."
-                value={phoneNumber}
-                onChange={(event) => setPhoneNumber(event.target.value)}
-              />
+              
+<input
+  id="phoneNumber"
+  type="tel"
+  placeholder="+380671234567"
+  value={phoneNumber}
+  maxLength={13}
+  inputMode="tel"
+  autoComplete="tel"
+  onChange={(event) => {
+    const value = event.target.value;
+
+    if (/^\+?\d*$/.test(value)) {
+      setPhoneNumber(value);
+    }
+  }}
+/>
+
             </div>
 
             <div className="form-group">
               <label htmlFor="dateOfBirth">Дата народження</label>
 
-              <input
-                id="dateOfBirth"
-                type="date"
-                value={dateOfBirth}
-                onChange={(event) => setDateOfBirth(event.target.value)}
-              />
+             
+<input
+  id="dateOfBirth"
+  type="date"
+  value={dateOfBirth}
+  max={localToday}
+  onChange={(event) =>
+    setDateOfBirth(event.target.value)
+  }
+/>
+
             </div>
 
             <div className="form-group">

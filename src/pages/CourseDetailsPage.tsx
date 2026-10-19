@@ -20,6 +20,7 @@ import ConfirmDeleteModal from "../components/ConfirmDeleteModal";
 import { deleteCourseMaterial } from "../api/coursesApi";
 import { BookOpen, ExternalLink, Pencil, Trash2 } from "lucide-react";
 import CourseParticipantsSection from "../components/CourseParticipantsSection";
+import CourseTestsSection from "../components/CourseTestsSection";
 
 function CourseDetailsPage() {
   const { id } = useParams();
@@ -287,7 +288,9 @@ function CourseDetailsPage() {
             </div>
 
             <div className="course-overview-actions">
-              {!course.isOwner && !course.isEnrolled && (
+              {!course.isOwner &&
+                !course.isEnrolled &&
+                course.visibility === CourseVisibility.Public && (
                 <button
                   type="button"
                   className="primary-button"
@@ -298,7 +301,9 @@ function CourseDetailsPage() {
                 </button>
               )}
 
-              {!course.isOwner && course.isEnrolled && (
+              {!course.isOwner &&
+                course.isEnrolled &&
+                course.visibility === CourseVisibility.Public && (
                 <button
                   type="button"
                   className="secondary-button"
@@ -412,9 +417,17 @@ function CourseDetailsPage() {
 
             <h3>Матеріали доступні учасникам курсу</h3>
 
-            <p>Приєднайтеся до курсу, щоб переглядати навчальні матеріали.</p>
+            <p>
+              {course.visibility === CourseVisibility.Public
+                ? "Приєднайтеся до курсу, щоб переглядати навчальні матеріали."
+                : "Матеріали приватного курсу доступні лише його учасникам."}
+            </p>
           </div>
         </section>
+      )}
+
+      {(course.isOwner || course.isEnrolled) && (
+        <CourseTestsSection courseId={course.id} isOwner={course.isOwner} />
       )}
 
       <MaterialModal
