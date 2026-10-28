@@ -26,6 +26,18 @@ import InlineQuestionEditor from "../components/tests/InlineQuestionEditor";
 import TestDropdown from "../components/tests/TestDropdown";
 import TestConfirmModal from "../components/tests/TestConfirmModal";
 import TestSettingsForm from "../components/tests/TestSettingsForm";
+import AiGenerationPanel from "../components/tests/AiGenerationPanel";
+
+import type { AiGenerationResultDto } from "../types/aiGeneration";
+
+import { mapAiQuestionToDraft } from "../utils/testDraft";
+
+import {
+  getConstructorDraftKey,
+  readConstructorDraft,
+  saveConstructorDraft,
+  removeConstructorDraft,
+} from "../utils/testConstructorStorage";
 import { useToast } from "../context/ToastContext";
 
 import type { TestDto } from "../types/test";
@@ -57,21 +69,26 @@ type Props = {
 };
 
 const methodOptions = [
-  { value: "manual", label: "Ручне створення" },
-  { value: "ai", label: "Генерація з LearnAI", disabled: true },
   {
-    value: "materials",
-    label: "Генерація з матеріалів курсу",
+    value: "manual",
+    label: "Ручне створення",
+  },
+  {
+    value: "ai",
+    label: "Генерація з матеріалів через LearnAI",
+  },
+  {
+    value: "import",
+    label: "Імпорт із файлу",
     disabled: true,
   },
-  { value: "import", label: "Імпорт з файлу", disabled: true },
 ];
 
 function snapshot(
   settings: TestSettingsValues,
   questions: QuestionDraft[],
-) {
-  return JSON.stringify({ settings, questions });
+): string {
+  return JSON.stringify(buildFullTestPayload(settings, questions));
 }
 
 function confirmationDetails(action: Action) {
@@ -109,7 +126,7 @@ function confirmationDetails(action: Action) {
         confirmLabel: "Прибрати",
         danger: true,
         description:
-          "Питання зникне з форми. На сервері зміна застосовується лише після збереження чернетки.",
+          "Питання зникне з форми. Зміна застосовується лише після збереження чернетки.",
       };
   }
 }
@@ -124,12 +141,18 @@ function TestConstructorPage({ mode }: Props) {
   const [courseId, setCourseId] = useState<number | null>(null);
   const [courseTitle, setCourseTitle] = useState("");
 
-  const [settings, setSettings] =
-    useState<TestSettingsValues>(getInitialTestSettings);
+  const [settings, setSettings] = useState<TestSettingsValues>(
+    getInitialTestSettings,
+  );
 
   const [creationMethod, setCreationMethod] = useState("manual");
   const [questions, setQuestions] = useState<QuestionDraft[]>([]);
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
+
+  const [importedJobIds, setImportedJobIds] = useState<string[]>([]);
+
+  // Дозволяє записувати локальну чернетку тільки після її завантаження.
+  const [draftReady, setDraftReady] = useState(false);
 
   const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
 
@@ -138,19 +161,17 @@ function TestConstructorPage({ mode }: Props) {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const [pendingAction, setPendingAction] = useState<Action | null>(null);
-
+  const draftStorageKey = courseId
+    ? getConstructorDraftKey(courseId, mode === "edit" ? test?.id : undefined)
+    : null;
   useEffect(() => {
     let active = true;
 
-    const id = Number(
-      mode === "create" ? courseIdParam : testIdParam,
-    );
+    const id = Number(mode === "create" ? courseIdParam : testIdParam);
 
     if (!Number.isSafeInteger(id) || id <= 0) {
       setLoadError(
-        mode === "create"
-          ? "Некоректний ID курсу."
-          : "Некоректний ID тесту.",
+        mode === "create" ? "Некоректний ID курсу." : "Некоректний ID тесту.",
       );
       setIsLoading(false);
       return;
@@ -160,7 +181,7 @@ function TestConstructorPage({ mode }: Props) {
     setLoadError("");
     setTest(null);
     setSavedSnapshot(null);
-
+    setDraftReady(false);
     async function load() {
       try {
         if (mode === "create") {
@@ -169,17 +190,24 @@ function TestConstructorPage({ mode }: Props) {
           if (!active) return;
 
           if (!course.isOwner) {
-            setLoadError(
-              "Створювати тести може лише власник курсу.",
-            );
+            setLoadError("Створювати тести може лише власник курсу.");
             return;
           }
 
+          const key = getConstructorDraftKey(course.id);
+          const restored = readConstructorDraft(key);
+
           setCourseId(course.id);
           setCourseTitle(course.title);
-          setSettings(getInitialTestSettings());
-          setQuestions([]);
+
+          setSettings(restored?.settings ?? getInitialTestSettings());
+
+          setQuestions(restored?.questions ?? []);
+          setCreationMethod(restored?.creationMethod ?? "manual");
+          setImportedJobIds(restored?.importedJobIds ?? []);
+
           setExpandedKey(null);
+          setDraftReady(true);
         } else {
           const loadedTest = await getTestById(id);
           const course = await getCourseById(loadedTest.courseId);
@@ -187,9 +215,7 @@ function TestConstructorPage({ mode }: Props) {
           if (!active) return;
 
           if (!course.isOwner) {
-            setLoadError(
-              "Конструктор доступний лише власнику курсу.",
-            );
+            setLoadError("Конструктор доступний лише власнику курсу.");
             return;
           }
 
@@ -204,24 +230,33 @@ function TestConstructorPage({ mode }: Props) {
             .sort((a, b) => a.order - b.order)
             .map(mapQuestionToDraft);
 
+          const key = getConstructorDraftKey(course.id, loadedTest.id);
+
+          const restored =
+            !loadedTest.isPublished && !loadedTest.isArchived
+              ? readConstructorDraft(key)
+              : null;
+
           setTest(loadedTest);
           setCourseId(course.id);
           setCourseTitle(course.title);
-          setSettings(nextSettings);
-          setQuestions(nextQuestions);
+
+          setSettings(restored?.settings ?? nextSettings);
+          setQuestions(restored?.questions ?? nextQuestions);
+
+          setCreationMethod(restored?.creationMethod ?? "manual");
+          setImportedJobIds(restored?.importedJobIds ?? []);
+
           setExpandedKey(null);
 
-          setSavedSnapshot(
-            snapshot(nextSettings, nextQuestions),
-          );
+          setSavedSnapshot(snapshot(nextSettings, nextQuestions));
+
+          setDraftReady(true);
         }
       } catch (error) {
         if (active) {
           setLoadError(
-            getTestApiError(
-              error,
-              "Не вдалося завантажити конструктор.",
-            ),
+            getTestApiError(error, "Не вдалося завантажити конструктор."),
           );
         }
       } finally {
@@ -235,9 +270,29 @@ function TestConstructorPage({ mode }: Props) {
       active = false;
     };
   }, [mode, courseIdParam, testIdParam]);
+  useEffect(() => {
+    if (!draftReady || !draftStorageKey || isLoading) return;
 
-  const locked =
-    !!test && (test.isPublished || test.isArchived);
+    if (test?.isPublished || test?.isArchived) return;
+
+    saveConstructorDraft(draftStorageKey, {
+      settings,
+      questions,
+      creationMethod,
+      importedJobIds,
+    });
+  }, [
+    draftReady,
+    draftStorageKey,
+    isLoading,
+    test?.isPublished,
+    test?.isArchived,
+    settings,
+    questions,
+    creationMethod,
+    importedJobIds,
+  ]);
+  const locked = !!test && (test.isPublished || test.isArchived);
 
   const isDirty =
     mode === "edit" &&
@@ -249,15 +304,11 @@ function TestConstructorPage({ mode }: Props) {
     0,
   );
 
-  const backPath = courseId
-    ? `/courses/${courseId}`
-    : "/courses";
+  const backPath = courseId ? `/courses/${courseId}` : "/courses";
 
   function updateQuestion(key: string, question: QuestionDraft) {
     setQuestions((current) =>
-      current.map((item) =>
-        item.key === key ? question : item,
-      ),
+      current.map((item) => (item.key === key ? question : item)),
     );
   }
 
@@ -269,10 +320,7 @@ function TestConstructorPage({ mode }: Props) {
     setQuestions((current) => {
       const next = [...current];
 
-      [next[index], next[target]] = [
-        next[target],
-        next[index],
-      ];
+      [next[index], next[target]] = [next[target], next[index]];
 
       return next;
     });
@@ -284,6 +332,40 @@ function TestConstructorPage({ mode }: Props) {
     setQuestions((current) => [...current, next]);
     setExpandedKey(next.key);
   }
+  function handleImportAiQuestions(
+    jobId: string,
+    result: AiGenerationResultDto,
+  ) {
+    if (locked || isProcessing) return;
+
+    if (importedJobIds.includes(jobId)) {
+      showToast("Ці питання вже додані до конструктора.", "error");
+      return;
+    }
+
+    const newQuestions = result.questions.map(mapAiQuestionToDraft);
+
+    const updatedQuestions = [...questions, ...newQuestions];
+
+    const updatedJobIds = [...importedJobIds, jobId];
+
+    // Зберігаємо питання та факт імпорту разом, до оновлення UI.
+    if (draftStorageKey) {
+      saveConstructorDraft(draftStorageKey, {
+        settings,
+        questions: updatedQuestions,
+        creationMethod,
+        importedJobIds: updatedJobIds,
+      });
+    }
+
+    setQuestions(updatedQuestions);
+    setImportedJobIds(updatedJobIds);
+
+    if (newQuestions.length > 0) {
+      setExpandedKey(newQuestions[0].key);
+    }
+  }
 
   async function handleSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -291,8 +373,7 @@ function TestConstructorPage({ mode }: Props) {
     if (locked || isProcessing || !courseId) return;
 
     const errorMessage =
-      validateTestSettings(settings) ||
-      validateDraftQuestions(questions);
+      validateTestSettings(settings) || validateDraftQuestions(questions);
 
     if (errorMessage) {
       showToast(errorMessage, "error");
@@ -304,20 +385,40 @@ function TestConstructorPage({ mode }: Props) {
     try {
       const payload = buildFullTestPayload(settings, questions);
 
-      if (mode === "create") {
-        const created = await createFullTest(courseId, payload);
+     if (mode === "create") {
+  const created = await createFullTest(courseId, payload);
 
-        showToast(
-          "Тест і всі питання успішно створено.",
-          "success",
-        );
+  const newId = created?.id;
 
-        const newId = created?.id;
+  if (
+    typeof newId === "number" &&
+    Number.isSafeInteger(newId) &&
+    newId > 0
+  ) {
+    const newDraftKey = getConstructorDraftKey(
+      courseId,
+      newId,
+    );
+
+    saveConstructorDraft(newDraftKey, {
+      settings,
+      questions,
+      creationMethod,
+      importedJobIds,
+    });
+  }
+
+  if (draftStorageKey) {
+    removeConstructorDraft(draftStorageKey);
+  }
+
+  showToast(
+    "Тест і всі питання успішно створено.",
+    "success",
+  );
 
         navigate(
-          typeof newId === "number" &&
-            Number.isSafeInteger(newId) &&
-            newId > 0
+          typeof newId === "number" && Number.isSafeInteger(newId) && newId > 0
             ? `/tests/${newId}/edit`
             : backPath,
           { replace: true },
@@ -337,25 +438,18 @@ function TestConstructorPage({ mode }: Props) {
                 deadline: payload.deadline ?? null,
                 questionsCount: questions.length,
                 totalPoints: questions.reduce(
-                  (sum, question) =>
-                    sum + Number(question.points),
+                  (sum, question) => sum + Number(question.points),
                   0,
                 ),
               }
             : current,
         );
 
-        showToast(
-          "Чернетку та всі питання збережено.",
-          "success",
-        );
+        showToast("Чернетку та всі питання збережено.", "success");
       }
     } catch (error) {
       if (!isUnauthorizedError(error)) {
-        showToast(
-          getTestApiError(error, "Не вдалося зберегти тест."),
-          "error",
-        );
+        showToast(getTestApiError(error, "Не вдалося зберегти тест."), "error");
       }
     } finally {
       setIsProcessing(false);
@@ -372,9 +466,7 @@ function TestConstructorPage({ mode }: Props) {
         current.filter((item) => item.key !== removedKey),
       );
 
-      setExpandedKey((current) =>
-        current === removedKey ? null : current,
-      );
+      setExpandedKey((current) => (current === removedKey ? null : current));
 
       setPendingAction(null);
       return;
@@ -391,9 +483,7 @@ function TestConstructorPage({ mode }: Props) {
         await publishTest(test.id);
 
         setTest((current) =>
-          current
-            ? { ...current, isPublished: true }
-            : current,
+          current ? { ...current, isPublished: true } : current,
         );
 
         showToast("Тест опубліковано.", "success");
@@ -401,15 +491,15 @@ function TestConstructorPage({ mode }: Props) {
         await archiveTest(test.id);
 
         setTest((current) =>
-          current
-            ? { ...current, isArchived: true }
-            : current,
+          current ? { ...current, isArchived: true } : current,
         );
 
         showToast("Тест архівовано.", "success");
       } else {
         await deleteTest(test.id);
-
+        if (draftStorageKey) {
+          removeConstructorDraft(draftStorageKey);
+        }
         showToast("Чернетку видалено.", "success");
         navigate(backPath, { replace: true });
       }
@@ -417,10 +507,7 @@ function TestConstructorPage({ mode }: Props) {
       setPendingAction(null);
     } catch (error) {
       if (!isUnauthorizedError(error)) {
-        showToast(
-          getTestApiError(error, "Не вдалося виконати дію."),
-          "error",
-        );
+        showToast(getTestApiError(error, "Не вдалося виконати дію."), "error");
       }
     } finally {
       setIsProcessing(false);
@@ -430,9 +517,7 @@ function TestConstructorPage({ mode }: Props) {
   if (isLoading) {
     return (
       <div className="page test-editor-page">
-        <p className="test-page-notice">
-          Завантаження конструктора...
-        </p>
+        <p className="test-page-notice">Завантаження конструктора...</p>
       </div>
     );
   }
@@ -477,41 +562,28 @@ function TestConstructorPage({ mode }: Props) {
         <div>
           <span className="test-eyebrow">{courseTitle}</span>
 
-          <h1>
-            {mode === "create"
-              ? "Створення тесту"
-              : "Конструктор тесту"}
-          </h1>
+          <h1>{mode === "create" ? "Створення тесту" : "Конструктор тесту"}</h1>
 
-          <p>
-            Налаштуйте тест і питання, а потім збережіть
-            усе однією дією.
-          </p>
+          <p>Налаштуйте тест і питання, а потім збережіть усе однією дією.</p>
         </div>
 
-        <span className="test-constructor-status">
-          {status}
-        </span>
+        <span className="test-constructor-status">{status}</span>
       </header>
 
       {locked && (
         <div className="test-editor-locked-note">
           <LockKeyhole size={18} />
-          Цей тест більше не можна редагувати.
-          Доступний тільки перегляд.
+          Цей тест більше не можна редагувати. Доступний тільки перегляд.
         </div>
       )}
 
-      <form
-        onSubmit={handleSave}
-        className="test-constructor-form"
-      >
+      <form onSubmit={handleSave} className="test-constructor-form">
         <section className="test-panel test-constructor-method">
           <div className="test-panel-heading">
             <h2>Спосіб створення</h2>
             <p>
-              Зараз доступний ручний режим. Інші способи
-              можна буде підключити пізніше.
+              Оберіть, як додавати питання. Перемикання між способами не видаляє
+              вже додані питання.
             </p>
           </div>
 
@@ -524,12 +596,24 @@ function TestConstructorPage({ mode }: Props) {
           />
         </section>
 
+        {creationMethod === "ai" && courseId && !locked && draftStorageKey && (
+          <section className="test-panel test-constructor-ai">
+            <AiGenerationPanel
+              key={draftStorageKey}
+              courseId={courseId}
+              draftKey={draftStorageKey}
+              questions={questions}
+              importedJobIds={importedJobIds}
+              disabled={isProcessing}
+              onImport={handleImportAiQuestions}
+            />
+          </section>
+        )}
+
         <section className="test-panel">
           <div className="test-panel-heading">
             <h2>1. Основна інформація</h2>
-            <p>
-              Назва, опис, кількість спроб і дедлайн.
-            </p>
+            <p>Назва, опис, кількість спроб і дедлайн.</p>
           </div>
 
           <TestSettingsForm
@@ -566,17 +650,11 @@ function TestConstructorPage({ mode }: Props) {
                 disabled={locked || isProcessing}
                 onToggle={() =>
                   setExpandedKey((current) =>
-                    current === question.key
-                      ? null
-                      : question.key,
+                    current === question.key ? null : question.key,
                   )
                 }
-                onChange={(next) =>
-                  updateQuestion(question.key, next)
-                }
-                onMove={(direction) =>
-                  moveQuestion(index, direction)
-                }
+                onChange={(next) => updateQuestion(question.key, next)}
+                onMove={(direction) => moveQuestion(index, direction)}
                 onDelete={() =>
                   setPendingAction({
                     kind: "removeQuestion",
@@ -587,7 +665,7 @@ function TestConstructorPage({ mode }: Props) {
             ))}
           </div>
 
-          {!locked && (
+          {!locked && creationMethod === "manual" && (
             <button
               type="button"
               className="test-constructor-add"
@@ -595,16 +673,14 @@ function TestConstructorPage({ mode }: Props) {
               disabled={isProcessing}
             >
               <Plus size={19} />
-              Додати питання
+              Додати питання вручну
             </button>
           )}
         </section>
 
         <div className="test-constructor-footer">
           <div className="test-constructor-footer-hint">
-            {isDirty
-              ? "Є незбережені зміни."
-              : "Збереження не публікує тест."}
+            {isDirty ? "Є незбережені зміни." : "Збереження не публікує тест."}
           </div>
 
           <div className="test-constructor-footer-actions">
@@ -616,48 +692,32 @@ function TestConstructorPage({ mode }: Props) {
                   type="button"
                   className="test-btn test-btn--danger-outline"
                   disabled={isProcessing || isDirty}
-                  onClick={() =>
-                    setPendingAction({ kind: "deleteTest" })
-                  }
+                  onClick={() => setPendingAction({ kind: "deleteTest" })}
                 >
                   <Trash2 size={16} />
                   Видалити тест
                 </button>
               )}
 
-            {mode === "edit" &&
-              test &&
-              !test.isArchived && (
-                <button
-                  type="button"
-                  className="test-btn test-btn--secondary"
-                  disabled={isProcessing || isDirty}
-                  onClick={() =>
-                    setPendingAction({ kind: "archive" })
-                  }
-                >
-                  <Archive size={16} />
-                  Архівувати
-                </button>
-              )}
+            {mode === "edit" && test && !test.isArchived && (
+              <button
+                type="button"
+                className="test-btn test-btn--secondary"
+                disabled={isProcessing || isDirty}
+                onClick={() => setPendingAction({ kind: "archive" })}
+              >
+                <Archive size={16} />
+                Архівувати
+              </button>
+            )}
 
             {mode === "edit" && test && !locked && (
               <button
                 type="button"
                 className="test-btn test-btn--secondary"
-                disabled={
-                  isProcessing ||
-                  isDirty ||
-                  questions.length === 0
-                }
-                title={
-                  isDirty
-                    ? "Спочатку збережіть зміни"
-                    : undefined
-                }
-                onClick={() =>
-                  setPendingAction({ kind: "publish" })
-                }
+                disabled={isProcessing || isDirty || questions.length === 0}
+                title={isDirty ? "Спочатку збережіть зміни" : undefined}
+                onClick={() => setPendingAction({ kind: "publish" })}
               >
                 <Send size={16} />
                 Опублікувати
@@ -668,16 +728,11 @@ function TestConstructorPage({ mode }: Props) {
               <button
                 className="test-btn test-btn--primary"
                 type="submit"
-                disabled={
-                  isProcessing ||
-                  (mode === "edit" && !isDirty)
-                }
+                disabled={isProcessing || (mode === "edit" && !isDirty)}
               >
                 <Save size={17} />
 
-                {isProcessing
-                  ? "Збереження..."
-                  : "Зберегти чернетку"}
+                {isProcessing ? "Збереження..." : "Зберегти чернетку"}
               </button>
             )}
           </div>

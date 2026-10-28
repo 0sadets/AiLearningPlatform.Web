@@ -4,6 +4,7 @@ import {
   ChevronDown,
   ChevronUp,
   Plus,
+  Sparkles,
   Trash2,
 } from "lucide-react";
 
@@ -145,15 +146,22 @@ function InlineQuestionEditor({
             {index + 1}
           </span>
 
-          <span className="test-inline-question-caption">
-            <strong>
-              {question.text.trim() || `Питання ${index + 1}`}
-            </strong>
+        <span className="test-inline-question-caption">
+  <strong>
+    {question.text.trim() || `Питання ${index + 1}`}
+  </strong>
 
-            <small>
-              {typeName} · {question.points || 0} бал(ів)
-            </small>
-          </span>
+  <small>
+    {typeName} · {question.points || 0} бал(ів)
+  </small>
+
+  {question.aiSource && (
+    <span className="test-question-ai-label">
+      <Sparkles size={13} />
+      LearnAI · {question.aiSource.materialTitle || "Матеріал курсу"}
+    </span>
+  )}
+</span>
 
           {expanded ? (
             <ChevronUp size={18} />
@@ -344,6 +352,20 @@ function InlineQuestionEditor({
               Додати варіант
             </button>
           )}
+
+          {question.aiSource?.excerpt && (
+  <div className="test-question-ai-source">
+    <strong>Джерело LearnAI</strong>
+
+    <p>{question.aiSource.excerpt}</p>
+
+    <small>
+      {question.aiSource.materialTitle}
+      {question.aiSource.chunkIndex !== null &&
+        ` · Фрагмент ${question.aiSource.chunkIndex}`}
+    </small>
+  </div>
+)}
         </div>
       )}
     </section>

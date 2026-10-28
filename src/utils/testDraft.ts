@@ -8,6 +8,7 @@ import {
   toTestPayload,
   type TestSettingsValues,
 } from "./testForm";
+import type { AiGeneratedQuestionDto } from "../types/aiGeneration";
 
 export interface OptionDraft {
   key: string;
@@ -21,6 +22,13 @@ export interface QuestionDraft {
   type: QuestionType;
   points: string;
   answerOptions: OptionDraft[];
+
+  aiSource?: {
+    materialId: number | null;
+    materialTitle: string | null;
+    chunkIndex: number | null;
+    excerpt: string | null;
+  };
 }
 
 export function createQuestionDraft(): QuestionDraft {
@@ -56,6 +64,30 @@ export function mapQuestionToDraft(question: QuestionDto): QuestionDraft {
         text: option.text,
         isCorrect: option.isCorrect,
       })),
+  };
+}
+export function mapAiQuestionToDraft(
+  question: AiGeneratedQuestionDto,
+): QuestionDraft {
+  return {
+    key: crypto.randomUUID(),
+
+    text: question.text,
+    type: question.type,
+    points: String(question.points),
+
+    answerOptions: question.options.map((option) => ({
+      key: crypto.randomUUID(),
+      text: option.text,
+      isCorrect: option.isCorrect,
+    })),
+
+    aiSource: {
+      materialId: question.sourceMaterialId,
+      materialTitle: question.sourceMaterialTitle,
+      chunkIndex: question.sourceChunkIndex,
+      excerpt: question.sourceExcerpt,
+    },
   };
 }
 
