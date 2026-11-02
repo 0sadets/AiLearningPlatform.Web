@@ -16,10 +16,7 @@ import { getTestById } from "../api/testsApi";
 import type { TestDto } from "../types/test";
 import type { TestAttemptResultDto } from "../types/testAttempt";
 
-import {
-  getTestApiError,
-  isUnauthorizedError,
-} from "../utils/testForm";
+import { getTestApiError, isUnauthorizedError } from "../utils/testForm";
 
 import "../styles/test-result.css";
 
@@ -27,8 +24,7 @@ function TestResultPage() {
   const { attemptId: attemptIdParam } = useParams();
   const attemptId = Number(attemptIdParam);
 
-  const [result, setResult] =
-    useState<TestAttemptResultDto | null>(null);
+  const [result, setResult] = useState<TestAttemptResultDto | null>(null);
 
   const [test, setTest] = useState<TestDto | null>(null);
 
@@ -39,10 +35,7 @@ function TestResultPage() {
     let active = true;
 
     async function load() {
-      if (
-        !Number.isSafeInteger(attemptId) ||
-        attemptId <= 0
-      ) {
+      if (!Number.isSafeInteger(attemptId) || attemptId <= 0) {
         setErrorMessage("Некоректний ідентифікатор спроби.");
         setLoading(false);
         return;
@@ -64,10 +57,7 @@ function TestResultPage() {
 
         if (!isUnauthorizedError(error)) {
           setErrorMessage(
-            getTestApiError(
-              error,
-              "Не вдалося отримати результат тесту.",
-            ),
+            getTestApiError(error, "Не вдалося отримати результат тесту."),
           );
         }
       } finally {
@@ -119,10 +109,7 @@ function TestResultPage() {
 
   return (
     <div className="page test-result-page">
-      <Link
-        to={`/tests/${test.id}`}
-        className="student-test-back"
-      >
+      <Link to={`/tests/${test.id}`} className="student-test-back">
         <ArrowLeft size={17} />
         До тесту
       </Link>
@@ -139,14 +126,10 @@ function TestResultPage() {
 
         <h1>Ваш результат</h1>
 
-        <p className="test-result-description">
-          {test.title}
-        </p>
+        <p className="test-result-description">{test.title}</p>
 
         <div className="test-result-score-circle">
-          <strong>
-            {Number(percentage.toFixed(1))}%
-          </strong>
+          <strong>{Number(percentage.toFixed(1))}%</strong>
           <span>Ваш результат</span>
         </div>
 
@@ -174,19 +157,23 @@ function TestResultPage() {
             До курсу
           </Link>
 
+          <Link className="test-result-secondary" to={`/tests/${test.id}`}>
+            Історія спроб
+          </Link>
+
           <Link
             className="test-result-primary"
-            to={`/tests/${test.id}`}
+            to={`/attempts/${result.id}/review`}
           >
-            До тесту та історії спроб
+            Детальний розбір відповідей
             <ArrowRight size={17} />
           </Link>
         </div>
       </section>
 
       <p className="test-result-note">
-        Результат обчислено автоматично. Детальний розбір
-        правильних відповідей наразі недоступний.
+        Результат обчислено автоматично. Ви можете переглянути свої відповіді,
+        правильні варіанти та джерела LearnAI у детальному розборі.
       </p>
     </div>
   );

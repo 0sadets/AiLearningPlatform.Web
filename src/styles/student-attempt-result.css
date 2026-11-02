@@ -1,0 +1,149 @@
+.student-attempt-result-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+
+  padding: 26px;
+  margin-bottom: 22px;
+
+  background: #f8faff;
+  border: 1px solid #c7d2fe;
+  border-radius: 14px;
+}
+
+.student-attempt-result-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.student-attempt-result-card-info > span {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.student-attempt-result-card-info > strong {
+  color: #4f46e5;
+  font-size: 36px;
+  font-weight: 750;
+}
+
+.student-attempt-result-card-info > p {
+  margin: 0;
+  color: #4b5563;
+  font-size: 14px;
+}
+
+.student-attempt-result-card-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+
+  width: 64px;
+  height: 64px;
+
+  background: #e0e7ff;
+  border-radius: 16px;
+  color: #4f46e5;
+}
+
+.attempt-result-ai-source {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  padding: 18px;
+  margin-top: 16px;
+
+  border: 1px solid #e0e7ff;
+  border-radius: 11px;
+  background: #f8faff;
+}
+
+.attempt-result-ai-source-heading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+
+  color: #4338ca;
+  font-size: 14px;
+}
+
+.attempt-result-ai-material {
+  margin: 0;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.attempt-result-ai-source blockquote {
+  margin: 0;
+  padding: 12px 14px;
+
+  border-left: 3px solid #818cf8;
+  border-radius: 0 7px 7px 0;
+
+  background: #fff;
+  color: #4b5563;
+
+  font-size: 13px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.attempt-result-ai-source small,
+.attempt-result-ai-empty {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.attempt-result-ai-empty {
+  margin: 0;
+}
+
+.attempt-result-text-answer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  padding: 14px 16px;
+  margin-top: 12px;
+
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 9px;
+}
+
+.attempt-result-text-answer strong {
+  color: #374151;
+  font-size: 13px;
+}
+
+.attempt-result-text-answer p {
+  margin: 0;
+  color: #4b5563;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .student-attempt-result-card {
+    padding: 20px;
+  }
+
+  .student-attempt-result-card-info > strong {
+    font-size: 29px;
+  }
+
+  .student-attempt-result-card-icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .attempt-result-ai-source {
+    padding: 14px;
+  }
+}

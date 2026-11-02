@@ -4,7 +4,6 @@ import { Link, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   CheckCircle2,
-  Circle,
   ClipboardCheck,
   Clock3,
   FileQuestion,
@@ -16,13 +15,17 @@ import {
 
 import { getTeacherAttemptDetails } from "../api/testResultsApi";
 
-import { QuestionType } from "../types/testQuestion";
 
 import type {
   TeacherAttemptDetailsDto,
-  TeacherQuestionResultDto,
 } from "../types/testResult";
+import AttemptResultQuestionCard from "../components/tests/AttemptResultQuestionCard";
 
+import {
+  mapTeacherQuestionToView,
+} from "../utils/attemptQuestionMapper";
+
+import "../styles/student-attempt-result.css";
 import {
   getTestApiError,
   isUnauthorizedError,
@@ -36,124 +39,8 @@ import {
 
 import "../styles/teacher-attempt-details.css";
 
-interface QuestionResultCardProps {
-  question: TeacherQuestionResultDto;
-  index: number;
-}
 
-function getQuestionTypeName(type: QuestionType): string {
-  switch (type) {
-    case QuestionType.SingleChoice:
-      return "Одна правильна відповідь";
 
-    case QuestionType.MultipleChoice:
-      return "Декілька правильних відповідей";
-
-    case QuestionType.TrueFalse:
-      return "Так / Ні";
-
-    default:
-      return "Питання";
-  }
-}
-
-function QuestionResultCard({
-  question,
-  index,
-}: QuestionResultCardProps) {
-  const options = [...question.answerOptions].sort(
-    (a, b) => a.order - b.order,
-  );
-
-  const status = !question.wasAnswered
-    ? "skipped"
-    : question.isCorrect
-      ? "correct"
-      : "incorrect";
-
-  return (
-    <article className="teacher-detail-question">
-      <div className="teacher-detail-question-heading">
-        <div className="teacher-detail-question-number">
-          {index + 1}
-        </div>
-
-        <div className="teacher-detail-question-title">
-          <h3>{question.text}</h3>
-          <span>{getQuestionTypeName(question.type)}</span>
-        </div>
-
-        <span
-          className={`teacher-detail-question-status teacher-detail-question-status--${status}`}
-        >
-          {status === "correct"
-            ? "Правильно"
-            : status === "incorrect"
-              ? "Неправильно"
-              : "Пропущено"}
-        </span>
-      </div>
-
-      <div className="teacher-detail-options">
-        {options.map((option) => {
-          const correct = option.isCorrect;
-          const selected = option.isSelected;
-
-          const optionClass = correct
-            ? "teacher-detail-option--correct"
-            : selected
-              ? "teacher-detail-option--incorrect"
-              : "";
-
-          return (
-            <div
-              key={option.id}
-              className={`teacher-detail-option ${optionClass}`}
-            >
-              <span className="teacher-detail-option-icon">
-                {correct ? (
-                  <CheckCircle2 size={20} />
-                ) : selected ? (
-                  <XCircle size={20} />
-                ) : (
-                  <Circle size={19} />
-                )}
-              </span>
-
-              <span className="teacher-detail-option-text">
-                {option.text}
-              </span>
-
-              <span className="teacher-detail-option-label">
-                {correct && selected
-                  ? "Правильна · обрано"
-                  : correct
-                    ? "Правильна"
-                    : selected
-                      ? "Обрано студентом"
-                      : ""}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="teacher-detail-question-footer">
-        <span>
-          {question.wasAnswered
-            ? question.isCorrect
-              ? "Студент відповів правильно"
-              : "Відповідь студента не збігається з правильною"
-            : "Студент не вибрав жодної відповіді"}
-        </span>
-
-        <strong>
-          {question.earnedPoints} / {question.points} балів
-        </strong>
-      </div>
-    </article>
-  );
-}
 
 function TeacherAttemptDetailsPage() {
   const { attemptId: attemptIdParam } = useParams();
@@ -242,21 +129,21 @@ function TeacherAttemptDetailsPage() {
     );
   }
 
-  const questions = [...data.questions].sort(
-    (a, b) => a.order - b.order,
-  );
+ const questions = data.questions
+  .map(mapTeacherQuestionToView)
+  .sort((a, b) => a.order - b.order);
 
-  const correctCount = questions.filter(
-    (question) => question.wasAnswered && question.isCorrect,
-  ).length;
+ const correctCount = questions.filter(
+  (question) => question.isAnswered && question.isCorrect,
+).length;
 
-  const incorrectCount = questions.filter(
-    (question) => question.wasAnswered && !question.isCorrect,
-  ).length;
+const incorrectCount = questions.filter(
+  (question) => question.isAnswered && !question.isCorrect,
+).length;
 
-  const skippedCount = questions.filter(
-    (question) => !question.wasAnswered,
-  ).length;
+const skippedCount = questions.filter(
+  (question) => !question.isAnswered,
+).length;
 
   return (
     <div className="page teacher-attempt-page">
@@ -368,13 +255,14 @@ function TeacherAttemptDetailsPage() {
       </div>
 
       <div className="teacher-attempt-questions">
-        {questions.map((question, index) => (
-          <QuestionResultCard
-            key={question.questionId}
-            question={question}
-            index={index}
-          />
-        ))}
+      {questions.map((question, index) => (
+  <AttemptResultQuestionCard
+    key={question.questionId}
+    question={question}
+    index={index}
+    viewer="teacher"
+  />
+))}
       </div>
     </div>
   );

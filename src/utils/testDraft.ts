@@ -51,12 +51,16 @@ export function createTrueFalseOptions(): OptionDraft[] {
   ];
 }
 
-export function mapQuestionToDraft(question: QuestionDto): QuestionDraft {
+export function mapQuestionToDraft(
+  question: QuestionDto,
+): QuestionDraft {
   return {
     key: crypto.randomUUID(),
+
     text: question.text,
     type: question.type,
     points: String(question.points),
+
     answerOptions: [...question.answerOptions]
       .sort((a, b) => a.order - b.order)
       .map((option) => ({
@@ -64,6 +68,15 @@ export function mapQuestionToDraft(question: QuestionDto): QuestionDraft {
         text: option.text,
         isCorrect: option.isCorrect,
       })),
+
+    aiSource: question.isAiGenerated
+      ? {
+          materialId: question.sourceMaterialId,
+          materialTitle: question.sourceMaterialTitle,
+          chunkIndex: question.sourceChunkIndex,
+          excerpt: question.sourceExcerpt,
+        }
+      : undefined,
   };
 }
 export function mapAiQuestionToDraft(
@@ -179,6 +192,20 @@ export function buildFullTestPayload(
           text: option.text.trim(),
           isCorrect: option.isCorrect,
         })),
+
+        isAiGenerated: !!question.aiSource,
+
+        sourceMaterialId:
+          question.aiSource?.materialId ?? null,
+
+        sourceMaterialTitle:
+          question.aiSource?.materialTitle ?? null,
+
+        sourceChunkIndex:
+          question.aiSource?.chunkIndex ?? null,
+
+        sourceExcerpt:
+          question.aiSource?.excerpt ?? null,
       }),
     ),
   };

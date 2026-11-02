@@ -20,6 +20,7 @@ export interface CourseMaterial {
   fileSize: number | null
   order: number
   createdAt: string
+  pageCount: number | null
 }
 
 export interface CreateCourseMaterialRequest {

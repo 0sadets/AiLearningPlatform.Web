@@ -15,10 +15,7 @@ import {
 } from "lucide-react";
 
 import { getTestById } from "../api/testsApi";
-import {
-  getMyTestAttempts,
-  startTestAttempt,
-} from "../api/testAttemptsApi";
+import { getMyTestAttempts, startTestAttempt } from "../api/testAttemptsApi";
 
 import type { TestDto } from "../types/test";
 import {
@@ -27,10 +24,7 @@ import {
 } from "../types/testAttempt";
 
 import { useToast } from "../context/ToastContext";
-import {
-  getTestApiError,
-  isUnauthorizedError,
-} from "../utils/testForm";
+import { getTestApiError, isUnauthorizedError } from "../utils/testForm";
 
 import "../styles/test-details.css";
 
@@ -115,12 +109,10 @@ function TestDetailsPage() {
   );
 
   const deadlineExpired =
-    !!test?.deadline &&
-    new Date(test.deadline).getTime() <= Date.now();
+    !!test?.deadline && new Date(test.deadline).getTime() <= Date.now();
 
   const attemptsExhausted =
-    test?.maxAttempts != null &&
-    attempts.length >= test.maxAttempts;
+    test?.maxAttempts != null && attempts.length >= test.maxAttempts;
 
   const canStart =
     !!test &&
@@ -137,15 +129,10 @@ function TestDetailsPage() {
     try {
       const attempt = await startTestAttempt(test.id);
 
-      navigate(
-        `/tests/${test.id}/attempts/${attempt.id}`,
-      );
+      navigate(`/tests/${test.id}/attempts/${attempt.id}`);
     } catch (error) {
       if (!isUnauthorizedError(error)) {
-        showToast(
-          getTestApiError(error, "Не вдалося почати тест."),
-          "error",
-        );
+        showToast(getTestApiError(error, "Не вдалося почати тест."), "error");
       }
     } finally {
       setStarting(false);
@@ -177,10 +164,7 @@ function TestDetailsPage() {
 
   return (
     <div className="page student-test-page">
-      <Link
-        to={`/courses/${test.courseId}`}
-        className="student-test-back"
-      >
+      <Link to={`/courses/${test.courseId}`} className="student-test-back">
         <ArrowLeft size={17} />
         До курсу
       </Link>
@@ -191,15 +175,11 @@ function TestDetailsPage() {
         </div>
 
         <div className="student-test-hero-content">
-          <span className="student-test-eyebrow">
-            Тестування знань
-          </span>
+          <span className="student-test-eyebrow">Тестування знань</span>
 
           <h1>{test.title}</h1>
 
-          <p>
-            {test.description || "Опис тесту відсутній."}
-          </p>
+          <p>{test.description || "Опис тесту відсутній."}</p>
         </div>
       </header>
 
@@ -239,8 +219,8 @@ function TestDetailsPage() {
         {activeAttempt ? (
           <>
             <p>
-              У вас є незавершена спроба. Можна повернутися
-              до проходження тесту.
+              У вас є незавершена спроба. Можна повернутися до проходження
+              тесту.
             </p>
 
             <Link
@@ -254,9 +234,8 @@ function TestDetailsPage() {
         ) : (
           <>
             <p>
-              Після початку спроба враховуватиметься
-              у вашому ліміті. Відповіді будуть перевірені
-              автоматично після завершення.
+              Після початку спроба враховуватиметься у вашому ліміті. Відповіді
+              будуть перевірені автоматично після завершення.
             </p>
 
             {canStart ? (
@@ -288,9 +267,7 @@ function TestDetailsPage() {
         <div className="student-test-section-heading">
           <div>
             <h2>Історія проходжень</h2>
-            <p>
-              Завершених спроб: {completedAttempts.length}
-            </p>
+            <p>Завершених спроб: {completedAttempts.length}</p>
           </div>
         </div>
 
@@ -302,14 +279,13 @@ function TestDetailsPage() {
         ) : (
           <div className="student-attempts-list">
             {attempts.map((attempt) => (
-              <div
-                key={attempt.id}
-                className="student-attempt-row"
-              >
+              <div key={attempt.id} className="student-attempt-row">
                 <div className="student-attempt-icon">
-                  {attempt.status === TestAttemptStatus.Completed
-                    ? <CheckCircle2 size={20} />
-                    : <Clock3 size={20} />}
+                  {attempt.status === TestAttemptStatus.Completed ? (
+                    <CheckCircle2 size={20} />
+                  ) : (
+                    <Clock3 size={20} />
+                  )}
                 </div>
 
                 <div className="student-attempt-info">
@@ -333,6 +309,13 @@ function TestDetailsPage() {
                       className="student-attempt-link"
                     >
                       Результат
+                      <ArrowRight size={16} />
+                    </Link>
+                    <Link
+                      to={`/attempts/${attempt.id}/review`}
+                      className="student-attempt-link student-attempt-link--review"
+                    >
+                      Розбір відповідей
                       <ArrowRight size={16} />
                     </Link>
                   </>

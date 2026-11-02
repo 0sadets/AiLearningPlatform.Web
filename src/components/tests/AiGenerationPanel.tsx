@@ -6,7 +6,7 @@ import {
   LoaderCircle,
   Plus,
   Sparkles,
-  XCircle,
+  XCircle,ExternalLink,
 } from "lucide-react";
 
 import { getCourseMaterials } from "../../api/coursesApi";
@@ -25,14 +25,12 @@ import type {
   AiGenerationJobDto,
   AiGenerationResultDto,
   AiQuestionCounts,
+  PdfPageRange,
 } from "../../types/aiGeneration";
 
 import type { QuestionDraft } from "../../utils/testDraft";
 
-import {
-  getTestApiError,
-  isUnauthorizedError,
-} from "../../utils/testForm";
+import { getTestApiError, isUnauthorizedError } from "../../utils/testForm";
 
 import { useToast } from "../../context/ToastContext";
 import "../../styles/ai-generation.css";
@@ -45,10 +43,7 @@ interface Props {
 
   disabled: boolean;
 
-  onImport: (
-    jobId: string,
-    result: AiGenerationResultDto,
-  ) => void;
+  onImport: (jobId: string, result: AiGenerationResultDto) => void;
 }
 
 const POLL_INTERVAL = 4000;
@@ -62,7 +57,15 @@ const initialCounts: AiQuestionCounts = {
 function getJobStorageKey(draftKey: string) {
   return `ilearn:ai-active-job:${draftKey}`;
 }
+function isPdfMaterial(material: CourseMaterial): boolean {
+  if (material.type !== CourseMaterialType.File) {
+    return false;
+  }
 
+  return (
+    material.originalFileName?.trim().toLowerCase().endsWith(".pdf") ?? false
+  );
+}
 function AiGenerationPanel({
   courseId,
   draftKey,
@@ -78,6 +81,16 @@ function AiGenerationPanel({
   const [materialsError, setMaterialsError] = useState("");
 
   const [materialIds, setMaterialIds] = useState<number[]>([]);
+  const [pdfPageRanges, setPdfPageRanges] = useState<
+    Record<
+      string,
+      {
+        startPage: string;
+        endPage: string;
+      }
+    >
+  >({});
+
   const [difficulty, setDifficulty] = useState<AiDifficulty>("medium");
   const [counts, setCounts] = useState<AiQuestionCounts>(initialCounts);
 
@@ -121,10 +134,7 @@ function AiGenerationPanel({
         if (!active) return;
 
         setMaterialsError(
-          getTestApiError(
-            error,
-            "Не вдалося завантажити матеріали курсу.",
-          ),
+          getTestApiError(error, "Не вдалося завантажити матеріали курсу."),
         );
       } finally {
         if (active) setMaterialsLoading(false);
@@ -160,10 +170,7 @@ function AiGenerationPanel({
         if (!active) return;
 
         setJobError(
-          getTestApiError(
-            error,
-            "Не вдалося отримати стан генерації.",
-          ),
+          getTestApiError(error, "Не вдалося отримати стан генерації."),
         );
 
         if (!isUnauthorizedError(error)) {
@@ -181,9 +188,7 @@ function AiGenerationPanel({
   }, [courseId, jobId]);
 
   const totalRequested =
-    counts.singleChoice +
-    counts.multipleChoice +
-    counts.trueFalse;
+    counts.singleChoice + counts.multipleChoice + counts.trueFalse;
 
   const busy =
     starting ||
@@ -191,9 +196,45 @@ function AiGenerationPanel({
     loadingResult ||
     (!!jobId && (!job || !job.isFinished));
 
-  const alreadyImported =
-    !!jobId && importedJobIds.includes(jobId);
+  const alreadyImported = !!jobId && importedJobIds.includes(jobId);
+  function togglePdfPageRange(materialId: number) {
+    const key = String(materialId);
 
+    setPdfPageRanges((current) => {
+      if (current[key]) {
+        const next = { ...current };
+        delete next[key];
+        return next;
+      }
+
+      return {
+        ...current,
+        [key]: {
+          startPage: "1",
+          endPage: "",
+        },
+      };
+    });
+  }
+
+  function updatePdfPageRange(
+    materialId: number,
+    field: "startPage" | "endPage",
+    value: string,
+  ) {
+    const key = String(materialId);
+
+    setPdfPageRanges((current) => ({
+      ...current,
+      [key]: {
+        ...(current[key] ?? {
+          startPage: "1",
+          endPage: "",
+        }),
+        [field]: value,
+      },
+    }));
+  }
   function toggleMaterial(id: number) {
     setMaterialIds((current) => {
       if (current.includes(id)) {
@@ -204,10 +245,7 @@ function AiGenerationPanel({
     });
   }
 
-  function updateCount(
-    key: keyof AiQuestionCounts,
-    value: string,
-  ) {
+  function updateCount(key: keyof AiQuestionCounts, value: string) {
     const number = Number(value);
 
     setCounts((current) => ({
@@ -227,18 +265,13 @@ function AiGenerationPanel({
     }
 
     if (totalRequested < 1 || totalRequested > 30) {
-      showToast(
-        "Кількість нових питань має бути від 1 до 30.",
-        "info",
-      );
+      showToast("Кількість нових питань має бути від 1 до 30.", "info");
       return;
     }
 
     const existingQuestions = [
       ...new Set(
-        questions
-          .map((question) => question.text.trim())
-          .filter(Boolean),
+        questions.map((question) => question.text.trim()).filter(Boolean),
       ),
     ];
 
@@ -258,6 +291,58 @@ function AiGenerationPanel({
       );
       return;
     }
+    const validatedPageRanges: Record<string, PdfPageRange> = {};
+
+    for (const materialId of materialIds) {
+      const key = String(materialId);
+      const range = pdfPageRanges[key];
+
+      if (!range) continue;
+
+      const material = materials.find((item) => item.id === materialId);
+
+      if (!material || !isPdfMaterial(material)) {
+        showToast(
+          "Діапазон сторінок можна вказувати тільки для PDF-матеріалів.",
+          "error",
+        );
+        return;
+      }
+
+      const start = Number(range.startPage);
+      const end = Number(range.endPage);
+
+      if (
+        !/^\d+$/.test(range.startPage.trim()) ||
+        !/^\d+$/.test(range.endPage.trim()) ||
+        !Number.isSafeInteger(start) ||
+        !Number.isSafeInteger(end) ||
+        start < 1 ||
+        end < start
+      ) {
+        showToast(
+          `Матеріал «${material.title}»: введіть коректний діапазон сторінок.`,
+          "error",
+        );
+        return;
+      }
+
+      if (
+        material.pageCount != null &&
+        (start > material.pageCount || end > material.pageCount)
+      ) {
+        showToast(
+          `Матеріал «${material.title}» містить ${material.pageCount} сторінок. Оберіть діапазон у межах документа.`,
+          "error",
+        );
+        return;
+      }
+
+      validatedPageRanges[key] = {
+        startPage: start,
+        endPage: end,
+      };
+    }
 
     setStarting(true);
     setResult(null);
@@ -268,13 +353,15 @@ function AiGenerationPanel({
         materialIds,
         difficulty,
         questionCounts: counts,
+
+        ...(Object.keys(validatedPageRanges).length > 0
+          ? { pdfPageRanges: validatedPageRanges }
+          : {}),
+
         existingQuestions,
       });
 
-      sessionStorage.setItem(
-        getJobStorageKey(draftKey),
-        created.id,
-      );
+      sessionStorage.setItem(getJobStorageKey(draftKey), created.id);
 
       setJob(created);
       setJobId(created.id);
@@ -323,10 +410,7 @@ function AiGenerationPanel({
       const data = await getAiGenerationResult(courseId, jobId);
 
       if (!data) {
-        showToast(
-          "Генерація ще завершується. Спробуйте пізніше.",
-          "info",
-        );
+        showToast("Генерація ще завершується. Спробуйте пізніше.", "info");
         return;
       }
 
@@ -334,10 +418,7 @@ function AiGenerationPanel({
     } catch (error) {
       if (!isUnauthorizedError(error)) {
         showToast(
-          getTestApiError(
-            error,
-            "Не вдалося отримати згенеровані питання.",
-          ),
+          getTestApiError(error, "Не вдалося отримати згенеровані питання."),
           "error",
         );
       }
@@ -369,10 +450,7 @@ function AiGenerationPanel({
         job.generatedQuestionsCount > 0) &&
       !alreadyImported
     ) {
-      showToast(
-        "Спочатку отримайте й додайте результат генерації.",
-        "info",
-      );
+      showToast("Спочатку отримайте й додайте результат генерації.", "info");
       return;
     }
 
@@ -402,9 +480,9 @@ function AiGenerationPanel({
             <div>
               <h3>Генерація питань із матеріалів</h3>
               <p>
-                LearnAI створить питання на основі вибраних
-                навчальних матеріалів. Ви зможете перевірити
-                та відредагувати кожне питання.
+                LearnAI створить питання на основі вибраних навчальних
+                матеріалів. Ви зможете перевірити та відредагувати кожне
+                питання.
               </p>
             </div>
           </div>
@@ -419,41 +497,172 @@ function AiGenerationPanel({
             {materialsLoading ? (
               <p>Завантаження матеріалів...</p>
             ) : materialsError ? (
-              <div className="ai-generation-warning">
-                {materialsError}
-              </div>
+              <div className="ai-generation-warning">{materialsError}</div>
             ) : materials.length === 0 ? (
               <div className="ai-generation-warning">
-                Для генерації поки немає текстових або файлових
-                матеріалів.
+                Для генерації поки немає текстових або файлових матеріалів.
               </div>
             ) : (
               <div className="ai-generation-materials">
-                {materials.map((material) => (
-                  <label
-                    key={material.id}
-                    className="ai-generation-material"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={materialIds.includes(material.id)}
-                      disabled={
-                        disabled ||
-                        (!materialIds.includes(material.id) &&
-                          materialIds.length >= 5)
-                      }
-                      onChange={() => toggleMaterial(material.id)}
-                    />
+                {materials.map((material) => {
+                  const selected = materialIds.includes(material.id);
+                  const isPdf = isPdfMaterial(material);
 
-                    <span>{material.title}</span>
+                  const range = pdfPageRanges[String(material.id)];
+                  const rangeEnabled = selected && !!range;
 
-                    <small>
-                      {material.type === CourseMaterialType.Text
-                        ? "Текст"
-                        : "Файл"}
-                    </small>
-                  </label>
-                ))}
+                  return (
+                    <div
+                      key={material.id}
+                      className={`ai-generation-material-card ${
+                        selected ? "ai-generation-material-card--selected" : ""
+                      }`}
+                    >
+                   <div className="ai-generation-material-row">
+  <label className="ai-generation-material">
+    <input
+      type="checkbox"
+      checked={selected}
+      disabled={
+        disabled || (!selected && materialIds.length >= 5)
+      }
+      onChange={() => toggleMaterial(material.id)}
+    />
+
+    <span>{material.title}</span>
+
+    <small>
+      {material.type === CourseMaterialType.Text
+        ? "Текст"
+        : isPdf
+          ? material.pageCount != null
+            ? `PDF · ${material.pageCount} стор.`
+            : "PDF"
+          : "Файл"}
+    </small>
+  </label>
+
+  {material.type === CourseMaterialType.File &&
+    material.fileUrl && (
+      <a
+        href={material.fileUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="ai-generation-material-open"
+        title="Відкрити матеріал"
+        aria-label={`Відкрити матеріал «${material.title}»`}
+      >
+        <ExternalLink size={17} />
+      </a>
+    )} 
+</div>
+
+                      {selected && isPdf && (
+                        <div className="ai-generation-page-settings">
+                          <label className="ai-generation-page-toggle">
+                            <input
+                              type="checkbox"
+                              checked={rangeEnabled}
+                              disabled={disabled}
+                              onChange={() => togglePdfPageRange(material.id)}
+                            />
+
+                            <span>Вибрати діапазон сторінок</span>
+                          </label>
+
+                          {rangeEnabled && (
+                            <>
+                              <div className="ai-generation-page-fields">
+                                <label>
+                                  <span>Від сторінки</span>
+
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    max={material.pageCount ?? undefined}
+                                    step={1}
+                                    value={range.startPage}
+                                    disabled={disabled}
+                                    placeholder="1"
+                                    onChange={(event) =>
+                                      updatePdfPageRange(
+                                        material.id,
+                                        "startPage",
+                                        event.target.value,
+                                      )
+                                    }
+                                  />
+                                </label>
+
+                                <label>
+                                  <span>До сторінки</span>
+
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    max={material.pageCount ?? undefined}
+                                    step={1}
+                                    value={range.endPage}
+                                    disabled={disabled}
+                                    placeholder={
+                                      material.pageCount != null
+                                        ? `Максимум ${material.pageCount}`
+                                        : "Остання сторінка"
+                                    }
+                                    onChange={(event) =>
+                                      updatePdfPageRange(
+                                        material.id,
+                                        "endPage",
+                                        event.target.value,
+                                      )
+                                    }
+                                  />
+                                </label>
+                              </div>
+                              {material.pageCount != null && (
+                                <p className="ai-generation-page-hint">
+                                  Документ містить {material.pageCount}{" "}
+                                  сторінок. Доступний діапазон: від 1 до{" "}
+                                  {material.pageCount}.
+                                </p>
+                              )}
+                              {rangeEnabled &&
+                                range.startPage.trim() !== "" &&
+                                range.endPage.trim() !== "" &&
+                                Number.isSafeInteger(Number(range.startPage)) &&
+                                Number.isSafeInteger(Number(range.endPage)) &&
+                                Number(range.startPage) >= 1 &&
+                                Number(range.endPage) >=
+                                  Number(range.startPage) &&
+                                (material.pageCount == null ||
+                                  Number(range.endPage) <=
+                                    material.pageCount) && (
+                                  <p className="ai-generation-page-hint">
+                                    Вибрано{" "}
+                                    {Number(range.endPage) -
+                                      Number(range.startPage) +
+                                      1}{" "}
+                                    сторінок.
+                                  </p>
+                                )}
+                              <p className="ai-generation-page-hint">
+                                LearnAI використає сторінки від початкової до
+                                кінцевої включно.
+                              </p>
+                            </>
+                          )}
+
+                          {!rangeEnabled && (
+                            <p className="ai-generation-page-hint">
+                              Без обмеження сторінок. LearnAI самостійно відбере
+                              доступні фрагменти документа.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -503,9 +712,7 @@ function AiGenerationPanel({
                     step={1}
                     value={counts[key]}
                     disabled={disabled}
-                    onChange={(event) =>
-                      updateCount(key, event.target.value)
-                    }
+                    onChange={(event) => updateCount(key, event.target.value)}
                   />
                 </label>
               ))}
@@ -542,9 +749,7 @@ function AiGenerationPanel({
             <div>
               <h3>
                 <Sparkles size={19} />
-                {job
-                  ? statusLabel[job.status]
-                  : "Відновлення генерації..."}
+                {job ? statusLabel[job.status] : "Відновлення генерації..."}
               </h3>
               <p>
                 {job?.cancellationRequested
@@ -635,9 +840,7 @@ function AiGenerationPanel({
 
           {result && !alreadyImported && (
             <div className="ai-generation-result">
-              <strong>
-                Згенеровано {result.questions.length} питань
-              </strong>
+              <strong>Згенеровано {result.questions.length} питань</strong>
 
               {result.isPartialResult && (
                 <p>Результат частковий: деякі питання не вдалося створити.</p>

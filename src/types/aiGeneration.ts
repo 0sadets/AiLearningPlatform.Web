@@ -15,11 +15,15 @@ export interface AiQuestionCounts {
   multipleChoice: number;
   trueFalse: number;
 }
-
+export interface PdfPageRange {
+  startPage: number;
+  endPage: number;
+}
 export interface CreateAiGenerationDto {
   materialIds: number[];
   difficulty: AiDifficulty;
   questionCounts: AiQuestionCounts;
+  pdfPageRanges?: Record<string, PdfPageRange>;
   existingQuestions?: string[];
 }
 

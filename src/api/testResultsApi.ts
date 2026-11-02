@@ -1,5 +1,5 @@
 import axiosInstance from "./axiosInstance";
-
+import type { StudentAttemptResultDto } from "../types/studentAttemptResult";
 import type {
   TeacherTestResultsDto,
   TeacherAttemptDetailsDto,
@@ -25,6 +25,16 @@ export async function getTeacherAttemptDetails(
     await axiosInstance.get<TeacherAttemptDetailsDto>(
       `/api/attempts/${attemptId}/details`,
     );
+
+  return data;
+}
+
+export async function getStudentAttemptResult(
+  attemptId: number,
+): Promise<StudentAttemptResultDto> {
+  const { data } = await axiosInstance.get<StudentAttemptResultDto>(
+    `/api/attempts/${attemptId}/result`,
+  );
 
   return data;
 }
