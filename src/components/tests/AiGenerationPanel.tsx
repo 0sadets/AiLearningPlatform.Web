@@ -66,6 +66,18 @@ function isPdfMaterial(material: CourseMaterial): boolean {
     material.originalFileName?.trim().toLowerCase().endsWith(".pdf") ?? false
   );
 }
+
+function getSafeLinkUrl(url: string | null): string | null {
+  if (!url) return null;
+
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" ? parsed.href : null;
+  } catch {
+    return null;
+  }
+}
+
 function AiGenerationPanel({
   courseId,
   draftKey,
@@ -122,14 +134,14 @@ function AiGenerationPanel({
 
         if (!active) return;
 
-        // Посилання наразі не підтримуються AI-генерацією.
-        setMaterials(
-          items.filter(
-            (item) =>
-              item.type === CourseMaterialType.Text ||
-              item.type === CourseMaterialType.File,
-          ),
-        );
+      setMaterials(
+        items.filter(
+          (item) =>
+            item.type === CourseMaterialType.Text ||
+            item.type === CourseMaterialType.File ||
+            item.type === CourseMaterialType.Link,
+        ),
+      );
       } catch (error) {
         if (!active) return;
 
@@ -492,16 +504,21 @@ function AiGenerationPanel({
               <BookOpen size={17} />
               Матеріали курсу
             </strong>
-            <p>Оберіть від 1 до 5 матеріалів.</p>
+            <p>
+              Оберіть від 1 до 5 матеріалів. Підтримуються текстові
+              матеріали, файли та публічні HTTPS-посилання на HTML,
+              PDF, TXT і DOCX.
+            </p>
 
             {materialsLoading ? (
               <p>Завантаження матеріалів...</p>
             ) : materialsError ? (
               <div className="ai-generation-warning">{materialsError}</div>
             ) : materials.length === 0 ? (
-              <div className="ai-generation-warning">
-                Для генерації поки немає текстових або файлових матеріалів.
-              </div>
+           <div className="ai-generation-warning">
+              У курсі поки немає навчальних матеріалів для AI-генерації.
+              Додайте текст, файл або посилання.
+            </div>
             ) : (
               <div className="ai-generation-materials">
                 {materials.map((material) => {
@@ -531,30 +548,43 @@ function AiGenerationPanel({
 
     <span>{material.title}</span>
 
-    <small>
+   <small>
       {material.type === CourseMaterialType.Text
         ? "Текст"
-        : isPdf
-          ? material.pageCount != null
-            ? `PDF · ${material.pageCount} стор.`
-            : "PDF"
-          : "Файл"}
+        : material.type === CourseMaterialType.Link
+          ? "Посилання"
+          : isPdf
+            ? material.pageCount != null
+              ? `PDF · ${material.pageCount} стор.`
+              : "PDF"
+            : "Файл"}
     </small>
   </label>
 
-  {material.type === CourseMaterialType.File &&
-    material.fileUrl && (
-      <a
-        href={material.fileUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="ai-generation-material-open"
-        title="Відкрити матеріал"
-        aria-label={`Відкрити матеріал «${material.title}»`}
-      >
-        <ExternalLink size={17} />
-      </a>
-    )} 
+  {(() => {
+  const materialUrl =
+    material.type === CourseMaterialType.Link
+      ? getSafeLinkUrl(material.url)
+      : material.type === CourseMaterialType.File
+        ? material.fileUrl
+        : null;
+
+  if (!materialUrl) return null;
+
+  return (
+    <a
+      href={materialUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="ai-generation-material-open"
+      title="Відкрити матеріал у новій вкладці"
+      aria-label={`Відкрити матеріал «${material.title}»`}
+      onClick={(event) => event.stopPropagation()}
+    >
+      <ExternalLink size={17} />
+    </a>
+  );
+})()}
 </div>
 
                       {selected && isPdf && (
@@ -804,12 +834,26 @@ function AiGenerationPanel({
             </div>
           )}
 
-          {job?.errorMessage && (
-            <div className="ai-generation-warning">
-              <AlertCircle size={17} />
-              {job.errorMessage}
-            </div>
-          )}
+         {job?.status === "Failed" && (
+  <div
+    className="ai-generation-warning"
+    role="alert"
+  >
+    <AlertCircle size={18} />
+
+    <span>
+      {job.errorMessage?.trim() ||
+        "Не вдалося згенерувати питання. Перевірте доступність навчальних матеріалів і спробуйте ще раз."}
+    </span>
+  </div>
+)}
+
+{job?.status !== "Failed" && job?.errorMessage && (
+  <div className="ai-generation-warning" role="alert">
+    <AlertCircle size={18} />
+    <span>{job.errorMessage}</span>
+  </div>
+)}
 
           {job?.isFinished && job.generatedQuestionsCount > 0 && (
             <div className="ai-generation-finished">

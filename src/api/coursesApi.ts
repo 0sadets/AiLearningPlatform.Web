@@ -178,3 +178,12 @@ export const deleteCourseMaterial = async (
     `/api/courses/${courseId}/materials/${materialId}`,
   )
 }
+
+export const refreshCourseMaterialSnapshot = async (
+  courseId: number,
+  materialId: number,
+): Promise<void> => {
+  await api.post(
+    `/api/courses/${courseId}/materials/${materialId}/snapshot/refresh`,
+  );
+};

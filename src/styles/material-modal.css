@@ -242,3 +242,125 @@
 .text-material-empty {
   color: #9ca3af;
 }
+
+.material-link-hint {
+  display: block;
+  margin-top: 7px;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.material-snapshot-refresh {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+
+  margin-top: 16px;
+  padding: 16px;
+
+  background: #f8faff;
+  border: 1px solid #e0e7ff;
+  border-radius: 11px;
+}
+
+.material-snapshot-info {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.material-snapshot-info strong {
+  color: #374151;
+  font-size: 13px;
+}
+
+.material-snapshot-info p {
+  margin: 6px 0 0;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.material-snapshot-refresh-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 10px 14px;
+
+  border: 1px solid #c7d2fe;
+  border-radius: 9px;
+
+  background: white;
+  color: #4f46e5;
+
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.material-snapshot-refresh-button:hover:not(:disabled) {
+  background: #eef2ff;
+  border-color: #a5b4fc;
+}
+
+.material-snapshot-refresh-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.material-refresh-spin {
+  animation: material-refresh-rotate 1s linear infinite;
+}
+
+@keyframes material-refresh-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 600px) {
+  .material-snapshot-refresh-button {
+    width: 100%;
+  }
+}
+
+.material-form .form-field--error input,
+.material-form .form-field--error textarea,
+.material-form .form-field--error select {
+  border-color: #dc2626;
+}
+
+.material-form .form-field--error input:focus,
+.material-form .form-field--error textarea:focus,
+.material-form .form-field--error select:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+
+.file-upload-area--error {
+  border-color: #dc2626;
+  background: #fff7f7;
+}
+
+.file-upload-area--error:hover {
+  border-color: #b91c1c;
+  background: #fef2f2;
+}
+
+.file-upload-area--error strong {
+  color: #dc2626;
+}
+
+.file-upload-area:focus-within {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+.file-upload-area--error:focus-within {
+  outline-color: #dc2626;
+}

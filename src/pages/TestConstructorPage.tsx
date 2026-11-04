@@ -30,7 +30,12 @@ import AiGenerationPanel from "../components/tests/AiGenerationPanel";
 
 import type { AiGenerationResultDto } from "../types/aiGeneration";
 
-import { mapAiQuestionToDraft } from "../utils/testDraft";
+import {
+  mapAiQuestionToDraft,
+  getQuestionDraftErrors,
+  hasQuestionDraftErrors,
+  type QuestionDraftErrors,
+} from "../utils/testDraft";
 
 import {
   getConstructorDraftKey,
@@ -46,7 +51,6 @@ import {
   buildFullTestPayload,
   createQuestionDraft,
   mapQuestionToDraft,
-  validateDraftQuestions,
   type QuestionDraft,
 } from "../utils/testDraft";
 
@@ -54,12 +58,51 @@ import {
   getInitialTestSettings,
   getTestApiError,
   isUnauthorizedError,
-  validateTestSettings,
+  getTestSettingsErrors,
+  type TestSettingsErrors,
   type TestSettingsValues,
 } from "../utils/testForm";
 
 import "../styles/test-editor.css";
+function revalidateTouchedQuestionErrors(
+  previous: QuestionDraftErrors,
+  question: QuestionDraft,
+): QuestionDraftErrors {
+  const fresh = getQuestionDraftErrors(question);
 
+  const updated: QuestionDraftErrors = {};
+
+  if ("text" in previous) {
+    updated.text = fresh.text;
+  }
+
+  if ("points" in previous) {
+    updated.points = fresh.points;
+  }
+
+  if ("type" in previous) {
+    updated.type = fresh.type;
+  }
+
+  if ("correct" in previous) {
+    updated.correct = fresh.correct;
+  }
+
+  if ("optionsCount" in previous) {
+    updated.optionsCount = fresh.optionsCount;
+  }
+
+  if (previous.options) {
+    updated.options = {};
+
+    for (const key of Object.keys(previous.options)) {
+      updated.options[key] =
+        fresh.options?.[key] ?? "";
+    }
+  }
+
+  return updated;
+}
 type Action =
   | { kind: "publish" | "archive" | "deleteTest" }
   | { kind: "removeQuestion"; key: string };
@@ -147,6 +190,15 @@ function TestConstructorPage({ mode }: Props) {
 
   const [creationMethod, setCreationMethod] = useState("manual");
   const [questions, setQuestions] = useState<QuestionDraft[]>([]);
+
+  const [settingsErrors, setSettingsErrors] = useState<TestSettingsErrors>({});
+
+  const [questionErrors, setQuestionErrors] = useState<
+    Record<string, QuestionDraftErrors>
+  >({});
+
+  const [validationSubmitted, setValidationSubmitted] = useState(false);
+
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
 
   const [importedJobIds, setImportedJobIds] = useState<string[]>([]);
@@ -155,7 +207,8 @@ function TestConstructorPage({ mode }: Props) {
   const [draftReady, setDraftReady] = useState(false);
 
   const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
-
+const [scrollToQuestionKey, setScrollToQuestionKey] =
+  useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -182,6 +235,9 @@ function TestConstructorPage({ mode }: Props) {
     setTest(null);
     setSavedSnapshot(null);
     setDraftReady(false);
+    setSettingsErrors({});
+    setQuestionErrors({});
+    setValidationSubmitted(false);
     async function load() {
       try {
         if (mode === "create") {
@@ -303,13 +359,115 @@ function TestConstructorPage({ mode }: Props) {
     (sum, question) => sum + (Number(question.points) || 0),
     0,
   );
+useEffect(() => {
+  if (!scrollToQuestionKey) return;
 
+  const element = document.getElementById(
+    `test-question-${scrollToQuestionKey}`,
+  );
+
+  element?.scrollIntoView({
+    behavior: "smooth",
+    block: "center",
+  });
+
+  setScrollToQuestionKey(null);
+}, [scrollToQuestionKey, expandedKey]);
   const backPath = courseId ? `/courses/${courseId}` : "/courses";
 
-  function updateQuestion(key: string, question: QuestionDraft) {
-    setQuestions((current) =>
-      current.map((item) => (item.key === key ? question : item)),
-    );
+  function updateSettings(next: TestSettingsValues) {
+    setSettings(next);
+
+    setSettingsErrors((current) => {
+      const fresh = getTestSettingsErrors(next);
+
+      if (validationSubmitted) {
+        return fresh;
+      }
+
+      const updated: TestSettingsErrors = {};
+
+      for (const key of Object.keys(current) as (keyof TestSettingsErrors)[]) {
+        updated[key] = fresh[key];
+      }
+
+      return updated;
+    });
+  }
+
+  function validateSettingsField(field: keyof TestSettingsErrors) {
+    const fresh = getTestSettingsErrors(settings);
+
+    setSettingsErrors((current) => ({
+      ...current,
+      [field]: fresh[field],
+    }));
+  }
+
+function updateQuestion(
+  key: string,
+  question: QuestionDraft,
+) {
+  setQuestions((current) =>
+    current.map((item) =>
+      item.key === key ? question : item,
+    ),
+  );
+
+  setQuestionErrors((current) => {
+    const previous = current[key];
+
+    if (!validationSubmitted && !previous) {
+      return current;
+    }
+
+    return {
+      ...current,
+      [key]: validationSubmitted
+        ? getQuestionDraftErrors(question)
+        : revalidateTouchedQuestionErrors(
+            previous ?? {},
+            question,
+          ),
+    };
+  });
+}
+
+  function validateQuestionField(
+    questionKey: string,
+    field: keyof QuestionDraftErrors,
+    optionKey?: string,
+  ) {
+    const question = questions.find((item) => item.key === questionKey);
+
+    if (!question) return;
+
+    const fresh = getQuestionDraftErrors(question);
+
+    setQuestionErrors((current) => {
+      const previous = current[questionKey] ?? {};
+
+      if (field === "options" && optionKey) {
+        return {
+          ...current,
+          [questionKey]: {
+            ...previous,
+            options: {
+              ...previous.options,
+              [optionKey]: fresh.options?.[optionKey] ?? "",
+            },
+          },
+        };
+      }
+
+      return {
+        ...current,
+        [questionKey]: {
+          ...previous,
+          [field]: fresh[field],
+        },
+      };
+    });
   }
 
   function moveQuestion(index: number, direction: -1 | 1) {
@@ -362,6 +520,17 @@ function TestConstructorPage({ mode }: Props) {
     setQuestions(updatedQuestions);
     setImportedJobIds(updatedJobIds);
 
+    if (validationSubmitted) {
+      setQuestionErrors(
+        Object.fromEntries(
+          updatedQuestions.map((question) => [
+            question.key,
+            getQuestionDraftErrors(question),
+          ]),
+        ),
+      );
+    }
+
     if (newQuestions.length > 0) {
       setExpandedKey(newQuestions[0].key);
     }
@@ -372,11 +541,72 @@ function TestConstructorPage({ mode }: Props) {
 
     if (locked || isProcessing || !courseId) return;
 
-    const errorMessage =
-      validateTestSettings(settings) || validateDraftQuestions(questions);
+    const nextSettingsErrors = getTestSettingsErrors(settings);
 
-    if (errorMessage) {
-      showToast(errorMessage, "error");
+    const nextQuestionErrors: Record<string, QuestionDraftErrors> = {};
+
+    let firstInvalidQuestionKey: string | null = null;
+
+    for (const question of questions) {
+      const errors = getQuestionDraftErrors(question);
+
+      if (hasQuestionDraftErrors(errors)) {
+        nextQuestionErrors[question.key] = errors;
+
+       if (firstInvalidQuestionKey) {
+  setExpandedKey(firstInvalidQuestionKey);
+  setScrollToQuestionKey(firstInvalidQuestionKey);
+
+  showToast("Виправте помилки в питаннях тесту.", "error");
+
+  return;
+}
+      }
+    }
+
+    setSettingsErrors(nextSettingsErrors);
+    setQuestionErrors(nextQuestionErrors);
+    setValidationSubmitted(true);
+
+    const hasSettingsErrors = Object.values(nextSettingsErrors).some(Boolean);
+
+    if (hasSettingsErrors) {
+      document.getElementById("test-settings-section")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+
+      showToast(
+        "Перевірте правильність заповнення налаштувань тесту.",
+        "error",
+      );
+
+      return;
+    }
+
+    if (questions.length === 0) {
+      document.getElementById("test-questions-section")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+
+      showToast("Додайте щонайменше одне питання.", "error");
+
+      return;
+    }
+
+    if (firstInvalidQuestionKey) {
+      setExpandedKey(firstInvalidQuestionKey);
+
+      document
+        .getElementById(`test-question-${firstInvalidQuestionKey}`)
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+
+      showToast("Виправте помилки в питаннях тесту.", "error");
+
       return;
     }
 
@@ -385,37 +615,31 @@ function TestConstructorPage({ mode }: Props) {
     try {
       const payload = buildFullTestPayload(settings, questions);
 
-     if (mode === "create") {
-  const created = await createFullTest(courseId, payload);
+      if (mode === "create") {
+        const created = await createFullTest(courseId, payload);
 
-  const newId = created?.id;
+        const newId = created?.id;
 
-  if (
-    typeof newId === "number" &&
-    Number.isSafeInteger(newId) &&
-    newId > 0
-  ) {
-    const newDraftKey = getConstructorDraftKey(
-      courseId,
-      newId,
-    );
+        if (
+          typeof newId === "number" &&
+          Number.isSafeInteger(newId) &&
+          newId > 0
+        ) {
+          const newDraftKey = getConstructorDraftKey(courseId, newId);
 
-    saveConstructorDraft(newDraftKey, {
-      settings,
-      questions,
-      creationMethod,
-      importedJobIds,
-    });
-  }
+          saveConstructorDraft(newDraftKey, {
+            settings,
+            questions,
+            creationMethod,
+            importedJobIds,
+          });
+        }
 
-  if (draftStorageKey) {
-    removeConstructorDraft(draftStorageKey);
-  }
+        if (draftStorageKey) {
+          removeConstructorDraft(draftStorageKey);
+        }
 
-  showToast(
-    "Тест і всі питання успішно створено.",
-    "success",
-  );
+        showToast("Тест і всі питання успішно створено.", "success");
 
         navigate(
           typeof newId === "number" && Number.isSafeInteger(newId) && newId > 0
@@ -444,7 +668,9 @@ function TestConstructorPage({ mode }: Props) {
               }
             : current,
         );
-
+setSettingsErrors({});
+setQuestionErrors({});
+setValidationSubmitted(false);
         showToast("Чернетку та всі питання збережено.", "success");
       }
     } catch (error) {
@@ -465,6 +691,12 @@ function TestConstructorPage({ mode }: Props) {
       setQuestions((current) =>
         current.filter((item) => item.key !== removedKey),
       );
+
+      setQuestionErrors((current) => {
+        const next = { ...current };
+        delete next[removedKey];
+        return next;
+      });
 
       setExpandedKey((current) => (current === removedKey ? null : current));
 
@@ -577,7 +809,7 @@ function TestConstructorPage({ mode }: Props) {
         </div>
       )}
 
-      <form onSubmit={handleSave} className="test-constructor-form">
+      <form onSubmit={handleSave} className="test-constructor-form" noValidate>
         <section className="test-panel test-constructor-method">
           <div className="test-panel-heading">
             <h2>Спосіб створення</h2>
@@ -610,7 +842,7 @@ function TestConstructorPage({ mode }: Props) {
           </section>
         )}
 
-        <section className="test-panel">
+        <section id="test-settings-section" className="test-panel">
           <div className="test-panel-heading">
             <h2>1. Основна інформація</h2>
             <p>Назва, опис, кількість спроб і дедлайн.</p>
@@ -618,12 +850,14 @@ function TestConstructorPage({ mode }: Props) {
 
           <TestSettingsForm
             value={settings}
-            onChange={setSettings}
+            onChange={updateSettings}
+            onFieldBlur={validateSettingsField}
+            errors={settingsErrors}
             disabled={locked || isProcessing}
           />
         </section>
 
-        <section className="test-panel">
+        <section id="test-questions-section" className="test-panel">
           <div className="test-constructor-questions-heading">
             <div className="test-panel-heading">
               <h2>2. Питання тесту</h2>
@@ -660,6 +894,10 @@ function TestConstructorPage({ mode }: Props) {
                     kind: "removeQuestion",
                     key: question.key,
                   })
+                }
+                errors={questionErrors[question.key]}
+                onFieldBlur={(field, optionKey) =>
+                  validateQuestionField(question.key, field, optionKey)
                 }
               />
             ))}

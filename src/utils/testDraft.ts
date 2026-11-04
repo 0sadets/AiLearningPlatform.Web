@@ -103,7 +103,116 @@ export function mapAiQuestionToDraft(
     },
   };
 }
+export interface QuestionDraftErrors {
+  text?: string;
+  points?: string;
+  type?: string;
+  optionsCount?: string;
+  correct?: string;
+  options?: Record<string, string>;
+}
 
+export function getQuestionDraftErrors(
+  question: QuestionDraft,
+): QuestionDraftErrors {
+  const errors: QuestionDraftErrors = {};
+
+  const text = question.text.trim();
+
+  if (!text) {
+    errors.text = "Введіть текст питання.";
+  } else if (text.length > 2000) {
+    errors.text =
+      "Текст питання не може перевищувати 2000 символів.";
+  }
+
+  const points = Number(question.points);
+
+  if (
+    !/^\d+$/.test(question.points.trim()) ||
+    !Number.isSafeInteger(points) ||
+    points <= 0
+  ) {
+    errors.points =
+      "Бали повинні бути цілим додатним числом.";
+  }
+
+  if (question.type === QuestionType.Text) {
+    errors.type =
+      "Текстові питання поки не підтримуються.";
+    return errors;
+  }
+
+  if (question.answerOptions.length < 2) {
+    errors.optionsCount =
+      "Додайте щонайменше два варіанти відповіді.";
+  }
+
+  const optionErrors: Record<string, string> = {};
+
+  for (const option of question.answerOptions) {
+    const optionText = option.text.trim();
+
+    if (!optionText) {
+      optionErrors[option.key] =
+        "Заповніть варіант відповіді.";
+    } else if (optionText.length > 1000) {
+      optionErrors[option.key] =
+        "Максимальна довжина — 1000 символів.";
+    }
+  }
+
+  if (Object.keys(optionErrors).length > 0) {
+    errors.options = optionErrors;
+  }
+
+  const correctCount = question.answerOptions.filter(
+    (option) => option.isCorrect,
+  ).length;
+
+  if (
+    question.type === QuestionType.SingleChoice &&
+    correctCount !== 1
+  ) {
+    errors.correct =
+      "Оберіть одну правильну відповідь.";
+  }
+
+  if (
+    question.type === QuestionType.MultipleChoice &&
+    correctCount < 2
+  ) {
+    errors.correct =
+      "Оберіть щонайменше дві правильні відповіді.";
+  }
+
+  if (question.type === QuestionType.TrueFalse) {
+    if (question.answerOptions.length !== 2) {
+      errors.optionsCount =
+        "Для питання «Так / Ні» потрібно два варіанти.";
+    }
+
+    if (correctCount !== 1) {
+      errors.correct =
+        "Для «Так / Ні» оберіть одну правильну відповідь.";
+    }
+  }
+
+  return errors;
+}
+
+export function hasQuestionDraftErrors(
+  errors: QuestionDraftErrors,
+): boolean {
+  return Boolean(
+    errors.text ||
+    errors.points ||
+    errors.type ||
+    errors.optionsCount ||
+    errors.correct ||
+    Object.values(errors.options ?? {}).some(Boolean),
+  );
+}
 export function validateDraftQuestions(
   questions: QuestionDraft[],
 ): string | null {

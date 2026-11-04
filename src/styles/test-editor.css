@@ -589,3 +589,120 @@
   color: #818cf8;
   font-size: 11px;
 }
+
+/* =========================
+   TEST CONSTRUCTOR VALIDATION
+========================= */
+
+.test-constructor-page .form-field {
+  min-width: 0;
+}
+
+.test-constructor-page .form-field-control {
+  min-width: 0;
+}
+
+.test-constructor-page .form-field-control input,
+.test-constructor-page .form-field-control textarea {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+/* Налаштування тесту */
+
+.test-constructor-page .test-settings-fields > .form-field {
+  width: 100%;
+}
+
+.test-constructor-page .test-setting-input {
+  margin-top: 14px;
+}
+
+/* Питання з помилками */
+
+.test-inline-question--error {
+  border-color: #fca5a5;
+}
+
+.test-inline-question--error.test-inline-question--expanded {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.06);
+}
+
+.test-inline-question--error .test-inline-question-number {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.test-question-validation-label {
+  display: inline-flex;
+  align-items: center;
+  color: #dc2626 !important;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Поля питання */
+
+.test-inline-question-body .form-field--error input,
+.test-inline-question-body .form-field--error textarea {
+  border-color: #dc2626;
+}
+
+.test-inline-question-body .form-field--error input:focus,
+.test-inline-question-body .form-field--error textarea:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+
+/* Варіанти відповіді */
+
+.test-inline-option-field {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.test-inline-option-field .test-option-text-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.test-inline-option-field .test-option-text-input--error {
+  border-color: #dc2626;
+  background: #fffafa;
+}
+
+.test-inline-option-field .test-option-text-input--error:focus {
+  outline: none;
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+
+/* Повідомлення про помилки */
+
+.test-constructor-page .form-field-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  color: #dc2626;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.test-constructor-page .form-field-error svg {
+  flex-shrink: 0;
+}
+
+@media (max-width: 600px) {
+  .test-inline-option {
+    gap: 8px;
+  }
+
+  .test-inline-option-field {
+    min-width: 0;
+  }
+}
