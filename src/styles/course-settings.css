@@ -240,3 +240,35 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* Валідація налаштувань курсу */
+
+.course-settings-form .form-field {
+  min-width: 0;
+}
+
+.course-settings-form .form-field-control input,
+.course-settings-form .form-field-control textarea {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.course-settings-form .form-field--error input,
+.course-settings-form .form-field--error textarea {
+  border-color: #dc2626;
+}
+
+.course-settings-form .form-field--error input:focus,
+.course-settings-form .form-field--error textarea:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+
+.course-image-button--error {
+  border-color: #dc2626;
+  color: #dc2626;
+}
+
+.course-image-button--error:hover {
+  border-color: #b91c1c;
+}

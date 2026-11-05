@@ -18,6 +18,12 @@ export interface CreateQuestionDto {
   type: QuestionType;
   points: number;
   answerOptions: CreateAnswerOptionDto[];
+
+  isAiGenerated?: boolean;
+  sourceMaterialId?: number | null;
+  sourceMaterialTitle?: string | null;
+  sourceChunkIndex?: number | null;
+  sourceExcerpt?: string | null;
 }
 
 export type UpdateQuestionDto = CreateQuestionDto;
@@ -37,6 +43,12 @@ export interface QuestionDto {
   points: number;
   order: number;
   answerOptions: AnswerOptionDto[];
+
+  isAiGenerated: boolean;
+  sourceMaterialId: number | null;
+  sourceMaterialTitle: string | null;
+  sourceChunkIndex: number | null;
+  sourceExcerpt: string | null;
 }
 
 export interface ReorderQuestionsDto {

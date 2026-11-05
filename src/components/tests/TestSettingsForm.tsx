@@ -1,45 +1,81 @@
-import type { TestSettingsValues } from "../../utils/testForm";
+import FormField from "../ui/FormField";
+
+import type {
+  TestSettingsErrors,
+  TestSettingsValues,
+} from "../../utils/testForm";
 
 interface TestSettingsFormProps {
   value: TestSettingsValues;
   onChange: (next: TestSettingsValues) => void;
+  onFieldBlur: (field: keyof TestSettingsErrors) => void;
+  errors?: TestSettingsErrors;
   disabled?: boolean;
 }
 
-function TestSettingsForm({ value, onChange, disabled = false }: TestSettingsFormProps) {
+function TestSettingsForm({
+  value,
+  onChange,
+  onFieldBlur,
+  errors = {},
+  disabled = false,
+}: TestSettingsFormProps) {
   function patch(patchValue: Partial<TestSettingsValues>) {
     onChange({ ...value, ...patchValue });
   }
 
   return (
     <div className="test-settings-fields">
-      <label className="test-field">
-        <span className="test-field-label">Назва тесту <span aria-hidden="true">*</span></span>
+      <FormField
+        id="testTitle"
+        label="Назва тесту"
+        required
+        error={errors.title}
+        hint={`${value.title.length}/200 символів`}
+      >
         <input
+          id="testTitle"
           type="text"
           value={value.title}
-          onChange={(event) => patch({ title: event.target.value })}
-          placeholder="Наприклад: Основи програмування C#"
           maxLength={200}
-          minLength={3}
-          required
+          placeholder="Наприклад: Основи програмування C#"
           disabled={disabled}
+          aria-invalid={!!errors.title}
+          aria-describedby={
+            errors.title ? "testTitle-error" : "testTitle-hint"
+          }
+          onBlur={() => onFieldBlur("title")}
+          onChange={(event) =>
+            patch({ title: event.target.value })
+          }
         />
-        <small>{value.title.length}/200 символів</small>
-      </label>
+      </FormField>
 
-      <label className="test-field">
-        <span className="test-field-label">Опис</span>
+      <FormField
+        id="testDescription"
+        label="Опис"
+        error={errors.description}
+        hint={`${value.description.length}/2000 символів`}
+      >
         <textarea
+          id="testDescription"
           rows={4}
           value={value.description}
-          onChange={(event) => patch({ description: event.target.value })}
-          placeholder="Що перевіряє цей тест?"
           maxLength={2000}
+          placeholder="Що перевіряє цей тест?"
           disabled={disabled}
+          aria-invalid={!!errors.description}
+          aria-describedby={
+            errors.description
+              ? "testDescription-error"
+              : "testDescription-hint"
+          }
+          onBlur={() => onFieldBlur("description")}
+          onChange={(event) =>
+            patch({ description: event.target.value })
+          }
         />
-        <small>{value.description.length}/2000 символів</small>
-      </label>
+      </FormField>
 
       <div className="test-settings-pair">
         <div className="test-setting-box">
@@ -47,25 +83,52 @@ function TestSettingsForm({ value, onChange, disabled = false }: TestSettingsFor
             <input
               type="checkbox"
               checked={value.attemptsLimited}
-              onChange={(event) => patch({ attemptsLimited: event.target.checked })}
+              onChange={(event) =>
+                patch({
+                  attemptsLimited: event.target.checked,
+                })
+              }
               disabled={disabled}
             />
+
             <span>Обмежити кількість спроб</span>
           </label>
-          <p>Якщо вимкнено, студент може проходити тест необмежену кількість разів.</p>
+
+          <p>
+            Якщо вимкнено, студент може проходити тест
+            необмежену кількість разів.
+          </p>
+
           {value.attemptsLimited && (
-            <label className="test-field test-setting-input">
-              <span className="test-field-label">Максимальна кількість спроб</span>
-              <input
-                type="number"
-                min={1}
-                step={1}
-                value={value.maxAttempts}
-                onChange={(event) => patch({ maxAttempts: event.target.value })}
-                disabled={disabled}
+            <div className="test-setting-input">
+              <FormField
+                id="testMaxAttempts"
+                label="Максимальна кількість спроб"
                 required
-              />
-            </label>
+                error={errors.maxAttempts}
+              >
+                <input
+                  id="testMaxAttempts"
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={value.maxAttempts}
+                  disabled={disabled}
+                  aria-invalid={!!errors.maxAttempts}
+                  aria-describedby={
+                    errors.maxAttempts
+                      ? "testMaxAttempts-error"
+                      : undefined
+                  }
+                  onBlur={() => onFieldBlur("maxAttempts")}
+                  onChange={(event) =>
+                    patch({
+                      maxAttempts: event.target.value,
+                    })
+                  }
+                />
+              </FormField>
+            </div>
           )}
         </div>
 
@@ -74,23 +137,52 @@ function TestSettingsForm({ value, onChange, disabled = false }: TestSettingsFor
             <input
               type="checkbox"
               checked={value.deadlineEnabled}
-              onChange={(event) => patch({ deadlineEnabled: event.target.checked })}
+              onChange={(event) =>
+                patch({
+                  deadlineEnabled: event.target.checked,
+                })
+              }
               disabled={disabled}
             />
+
             <span>Встановити дедлайн</span>
           </label>
-          <p>Після дедлайну студент не зможе розпочати нову спробу.</p>
+
+          <p>
+            Після дедлайну студент не зможе розпочати
+            нову спробу.
+          </p>
+
           {value.deadlineEnabled && (
-            <label className="test-field test-setting-input">
-              <span className="test-field-label">Дата й час (місцевий час)</span>
-              <input
-                type="datetime-local"
-                value={value.deadlineLocal}
-                onChange={(event) => patch({ deadlineLocal: event.target.value })}
-                disabled={disabled}
+            <div className="test-setting-input">
+              <FormField
+                id="testDeadline"
+                label="Дата й час (місцевий час)"
                 required
-              />
-            </label>
+                error={errors.deadlineLocal}
+              >
+                <input
+                  id="testDeadline"
+                  type="datetime-local"
+                  value={value.deadlineLocal}
+                  disabled={disabled}
+                  aria-invalid={!!errors.deadlineLocal}
+                  aria-describedby={
+                    errors.deadlineLocal
+                      ? "testDeadline-error"
+                      : undefined
+                  }
+                  onBlur={() =>
+                    onFieldBlur("deadlineLocal")
+                  }
+                  onChange={(event) =>
+                    patch({
+                      deadlineLocal: event.target.value,
+                    })
+                  }
+                />
+              </FormField>
+            </div>
           )}
         </div>
       </div>

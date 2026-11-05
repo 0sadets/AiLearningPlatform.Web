@@ -29,31 +29,66 @@ export function getInitialTestSettings(test?: TestDto): TestSettingsValues {
     deadlineLocal: formatLocalDateTime(test?.deadline ?? null),
   };
 }
+export interface TestSettingsErrors {
+  title?: string;
+  description?: string;
+  maxAttempts?: string;
+  deadlineLocal?: string;
+}
 
-export function validateTestSettings(value: TestSettingsValues): string | null {
+export function getTestSettingsErrors(
+  value: TestSettingsValues,
+): TestSettingsErrors {
+  const errors: TestSettingsErrors = {};
+
   const title = value.title.trim();
+
   if (title.length < 3 || title.length > 200) {
-    return "Назва тесту повинна містити від 3 до 200 символів.";
+    errors.title =
+      "Назва тесту повинна містити від 3 до 200 символів.";
   }
+
   if (value.description.trim().length > 2000) {
-    return "Опис тесту не може перевищувати 2000 символів.";
+    errors.description =
+      "Опис тесту не може перевищувати 2000 символів.";
   }
+
   if (value.attemptsLimited) {
     const attempts = Number(value.maxAttempts);
-    if (!/^\d+$/.test(value.maxAttempts.trim()) || !Number.isSafeInteger(attempts) || attempts < 1) {
-      return "Кількість спроб повинна бути цілим додатним числом.";
+
+    if (
+      !/^\d+$/.test(value.maxAttempts.trim()) ||
+      !Number.isSafeInteger(attempts) ||
+      attempts < 1
+    ) {
+      errors.maxAttempts =
+        "Кількість спроб повинна бути цілим додатним числом.";
     }
   }
+
   if (value.deadlineEnabled) {
     const date = new Date(value.deadlineLocal);
-    if (!value.deadlineLocal || Number.isNaN(date.getTime())) {
-      return "Вкажіть коректну дату та час дедлайну.";
-    }
-    if (date.getTime() <= Date.now()) {
-      return "Дедлайн повинен бути в майбутньому.";
+
+    if (
+      !value.deadlineLocal ||
+      Number.isNaN(date.getTime())
+    ) {
+      errors.deadlineLocal =
+        "Вкажіть коректну дату та час дедлайну.";
+    } else if (date.getTime() <= Date.now()) {
+      errors.deadlineLocal =
+        "Дедлайн повинен бути в майбутньому.";
     }
   }
-  return null;
+
+  return errors;
+}
+export function validateTestSettings(
+  value: TestSettingsValues,
+): string | null {
+  const errors = getTestSettingsErrors(value);
+
+  return Object.values(errors)[0] ?? null;
 }
 
 export function toTestPayload(value: TestSettingsValues): CreateTestDto {

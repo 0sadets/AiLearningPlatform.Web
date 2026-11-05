@@ -4,14 +4,20 @@ import { getCurrentUser, updateProfile } from "../api/authApi";
 import { useUser } from "../context/UserContext";
 import type { UserProfile } from "../types/auth";
 import { useToast } from "../context/ToastContext";
-
+import FormField from "../components/ui/FormField";
 import {
   validateName,
   validatePhone,
   validateDateOfBirth,
   validateAvatar,
 } from "../utils/profileValidation";
-
+interface ProfileFormErrors {
+  firstName?: string;
+  lastName?: string;
+  phoneNumber?: string;
+  dateOfBirth?: string;
+  avatar?: string;
+}
 function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
 
@@ -31,7 +37,7 @@ function ProfilePage() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-
+const [errors, setErrors] = useState<ProfileFormErrors>({});
   //const [error, setError] = useState('')
   // const [success, setSuccess] = useState("");
 
@@ -59,7 +65,17 @@ function ProfilePage() {
     loadProfile();
   }, []);
 
+useEffect(() => {
+  if (!avatar) return;
 
+  const previewUrl = URL.createObjectURL(avatar);
+
+  setAvatarPreview(previewUrl);
+
+  return () => {
+    URL.revokeObjectURL(previewUrl);
+  };
+}, [avatar]);
 const handleAvatarChange = (
   event: React.ChangeEvent<HTMLInputElement>,
 ) => {
@@ -69,8 +85,12 @@ const handleAvatarChange = (
 
   const validationError = validateAvatar(file);
 
+  setErrors((current) => ({
+    ...current,
+    avatar: validationError ?? undefined,
+  }));
+
   if (validationError) {
-    showToast(validationError, "error");
     event.target.value = "";
     return;
   }
@@ -78,35 +98,55 @@ const handleAvatarChange = (
   setAvatar(file);
   setRemoveAvatar(false);
 
-  const previewUrl = URL.createObjectURL(file);
-  setAvatarPreview(previewUrl);
+  //setAvatarPreview(URL.createObjectURL(file));
 
   event.target.value = "";
 };
 
 
-  const handleRemoveAvatar = () => {
-    setAvatar(undefined);
-    setAvatarPreview(null);
-    setRemoveAvatar(true);
+const handleRemoveAvatar = () => {
+  setAvatar(undefined);
+  setAvatarPreview(null);
+  setRemoveAvatar(true);
+
+  setErrors((current) => ({
+    ...current,
+    avatar: undefined,
+  }));
+};
+
+const validateProfileForm = (): ProfileFormErrors => {
+  return {
+    firstName:
+      validateName(firstName, "Ім'я") ?? undefined,
+
+    lastName:
+      validateName(lastName, "Прізвище") ?? undefined,
+
+    phoneNumber:
+      validatePhone(phoneNumber) ?? undefined,
+
+    dateOfBirth:
+      validateDateOfBirth(dateOfBirth) ?? undefined,
+
+    avatar:
+      avatar ? validateAvatar(avatar) ?? undefined : undefined,
   };
-
-
+};
 const handleSubmit = async (
   event: React.FormEvent<HTMLFormElement>,
 ) => {
   event.preventDefault();
 
-  const validationError =
-    validateName(firstName, "Ім'я") ??
-    validateName(lastName, "Прізвище") ??
-    validatePhone(phoneNumber) ??
-    validateDateOfBirth(dateOfBirth);
+if (isSaving) return;
 
-  if (validationError) {
-    showToast(validationError, "error");
-    return;
-  }
+const nextErrors = validateProfileForm();
+
+setErrors(nextErrors);
+
+if (Object.values(nextErrors).some(Boolean)) {
+  return;
+}
 
   setIsSaving(true);
 
@@ -197,15 +237,27 @@ const localToday = [
           </div>
 
           <div className="profile-avatar-actions">
-            <label className="secondary-button avatar-upload-button">
-              Завантажити фото
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleAvatarChange}
-                hidden
-              />
-            </label>
+            <label
+  className={`secondary-button avatar-upload-button ${
+    errors.avatar ? "avatar-upload-button--error" : ""
+  }`}
+>
+  Завантажити фото
+
+  <input
+    type="file"
+    accept=".jpg,.jpeg,.png,.webp"
+    onChange={handleAvatarChange}
+    disabled={isSaving}
+    hidden
+  />
+</label>
+
+{errors.avatar && (
+  <p className="form-field-error" role="alert">
+    {errors.avatar}
+  </p>
+)}
 
             {avatarPreview && (
               <button
@@ -219,102 +271,189 @@ const localToday = [
           </div>
         </div>
 
-        <form className="profile-form" onSubmit={handleSubmit}>
+        <form className="profile-form" onSubmit={handleSubmit} noValidate>
           <div className="profile-form-grid">
-            <div className="form-group">
-              <label htmlFor="firstName">Ім&apos;я</label>
-
-              <input
-                id="firstName"
-                value={firstName}
-                onChange={(event) => setFirstName(event.target.value)}
-                  minLength={2}
-  maxLength={100}
-  autoComplete="given-name"
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="lastName">Прізвище</label>
-
-              <input
-                id="lastName"
-                value={lastName}
-                onChange={(event) => setLastName(event.target.value)}
-                  minLength={2}
-  maxLength={100}
-  autoComplete="family-name"
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="email">Email</label>
-
-              <input id="email" value={profile.email} disabled />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="phoneNumber">Номер телефону</label>
-
-              
-<input
-  id="phoneNumber"
-  type="tel"
-  placeholder="+380671234567"
-  value={phoneNumber}
-  maxLength={13}
-  inputMode="tel"
-  autoComplete="tel"
-  onChange={(event) => {
-    const value = event.target.value;
-
-    if (/^\+?\d*$/.test(value)) {
-      setPhoneNumber(value);
+            <FormField
+  id="firstName"
+  label="Ім'я"
+  required
+  error={errors.firstName}
+>
+  <input
+    id="firstName"
+    value={firstName}
+    minLength={2}
+    maxLength={100}
+    autoComplete="given-name"
+    disabled={isSaving}
+    aria-invalid={!!errors.firstName}
+    aria-describedby={
+      errors.firstName ? "firstName-error" : undefined
     }
-  }}
-/>
+    onBlur={() => {
+      setErrors((current) => ({
+        ...current,
+        firstName: validateName(firstName, "Ім'я") ?? undefined,
+      }));
+    }}
+    onChange={(event) => {
+      const value = event.target.value;
+      setFirstName(value);
 
-            </div>
+      if (errors.firstName) {
+        setErrors((current) => ({
+          ...current,
+          firstName: validateName(value, "Ім'я") ?? undefined,
+        }));
+      }
+    }}
+  />
+</FormField>
+           <FormField
+  id="lastName"
+  label="Прізвище"
+  required
+  error={errors.lastName}
+>
+  <input
+    id="lastName"
+    value={lastName}
+    minLength={2}
+    maxLength={100}
+    autoComplete="family-name"
+    disabled={isSaving}
+    aria-invalid={!!errors.lastName}
+    aria-describedby={
+      errors.lastName ? "lastName-error" : undefined
+    }
+    onBlur={() => {
+      setErrors((current) => ({
+        ...current,
+        lastName:
+          validateName(lastName, "Прізвище") ?? undefined,
+      }));
+    }}
+    onChange={(event) => {
+      const value = event.target.value;
+      setLastName(value);
 
-            <div className="form-group">
-              <label htmlFor="dateOfBirth">Дата народження</label>
+      if (errors.lastName) {
+        setErrors((current) => ({
+          ...current,
+          lastName:
+            validateName(value, "Прізвище") ?? undefined,
+        }));
+      }
+    }}
+  />
+</FormField>
 
-             
-<input
+         <FormField
+  id="email"
+  label="Email"
+  hint="Електронну адресу наразі не можна змінити."
+>
+  <input
+    id="email"
+    type="email"
+    value={profile.email}
+    disabled
+    aria-describedby="email-hint"
+  />
+</FormField>
+
+        <FormField
+  id="phoneNumber"
+  label="Номер телефону"
+  error={errors.phoneNumber}
+  hint="Наприклад: +380671234567"
+>
+  <input
+    id="phoneNumber"
+    type="tel"
+    placeholder="+380671234567"
+    value={phoneNumber}
+    maxLength={13}
+    inputMode="tel"
+    autoComplete="tel"
+    disabled={isSaving}
+    aria-invalid={!!errors.phoneNumber}
+    aria-describedby={
+      errors.phoneNumber
+        ? "phoneNumber-error"
+        : "phoneNumber-hint"
+    }
+    onBlur={() => {
+      setErrors((current) => ({
+        ...current,
+        phoneNumber: validatePhone(phoneNumber) ?? undefined,
+      }));
+    }}
+    onChange={(event) => {
+      const value = event.target.value;
+
+      if (/^\+?\d*$/.test(value)) {
+        setPhoneNumber(value);
+
+        if (errors.phoneNumber) {
+          setErrors((current) => ({
+            ...current,
+            phoneNumber: validatePhone(value) ?? undefined,
+          }));
+        }
+      }
+    }}
+  />
+</FormField>
+           <FormField
   id="dateOfBirth"
-  type="date"
-  value={dateOfBirth}
-  max={localToday}
-  onChange={(event) =>
-    setDateOfBirth(event.target.value)
-  }
-/>
+  label="Дата народження"
+  error={errors.dateOfBirth}
+>
+  <input
+    id="dateOfBirth"
+    type="date"
+    value={dateOfBirth}
+    max={localToday}
+    disabled={isSaving}
+    aria-invalid={!!errors.dateOfBirth}
+    aria-describedby={
+      errors.dateOfBirth ? "dateOfBirth-error" : undefined
+    }
+    onBlur={() => {
+      setErrors((current) => ({
+        ...current,
+        dateOfBirth:
+          validateDateOfBirth(dateOfBirth) ?? undefined,
+      }));
+    }}
+    onChange={(event) => {
+      const value = event.target.value;
+      setDateOfBirth(value);
 
-            </div>
+      if (errors.dateOfBirth) {
+        setErrors((current) => ({
+          ...current,
+          dateOfBirth:
+            validateDateOfBirth(value) ?? undefined,
+        }));
+      }
+    }}
+  />
+</FormField>
 
-            <div className="form-group">
-              <label>Дата реєстрації</label>
-
-              <input
-                value={new Date(profile.createdAt).toLocaleDateString("uk-UA")}
-                disabled
-              />
-            </div>
+           <FormField
+  id="createdAt"
+  label="Дата реєстрації"
+>
+  <input
+    id="createdAt"
+    value={new Date(profile.createdAt).toLocaleDateString("uk-UA")}
+    disabled
+  />
+</FormField>
           </div>
-          {/* 
-          {error && (
-            <div className="form-error">
-              {error}
-            </div>
-          )}
 
-          {success && (
-            <div className="form-success">
-              {success}
-            </div>
-          )} */}
 
           <div className="profile-actions">
             <button

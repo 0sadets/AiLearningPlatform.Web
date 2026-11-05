@@ -398,3 +398,28 @@
     width: fit-content;
   }
 }
+
+
+
+/* Валідація створення курсу */
+
+.create-course-form .form-field {
+  min-width: 0;
+}
+
+.create-course-form .form-field-control input,
+.create-course-form .form-field-control textarea {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.create-course-form .form-field--error input,
+.create-course-form .form-field--error textarea {
+  border-color: #dc2626;
+}
+
+.create-course-form .form-field--error input:focus,
+.create-course-form .form-field--error textarea:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}

@@ -10,7 +10,16 @@ import {
   updateCourse,
   updateCourseImage,
 } from "../api/coursesApi";
+import FormField from "../components/ui/FormField";
 
+import {
+  validateCourseTitle,
+  validateCourseDescription,
+  validateCourseImage,
+  validateCourseForm,
+  hasCourseFormErrors,
+  type CourseFormErrors,
+} from "../utils/courseValidation";
 import { CourseVisibility, type CourseDetails } from "../types/course";
 
 import "../styles/course-settings.css";
@@ -29,7 +38,7 @@ function CourseSettingsPage() {
   );
 
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
-
+  const [errors, setErrors] = useState<CourseFormErrors>({});
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -52,7 +61,7 @@ function CourseSettingsPage() {
 
       try {
         const data = await getCourseById(courseId);
-
+        setErrors({});
         setCourse(data);
         setTitle(data.title);
         setDescription(data.description ?? "");
@@ -68,27 +77,53 @@ function CourseSettingsPage() {
 
     loadCourse();
   }, [id]);
+useEffect(() => {
+  if (!selectedImage) return;
 
-  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  const previewUrl = URL.createObjectURL(selectedImage);
 
-    if (!file) {
-      return;
-    }
+  setImagePreview(previewUrl);
 
-    setSelectedImage(file);
-    setImagePreview(URL.createObjectURL(file));
+  return () => {
+    URL.revokeObjectURL(previewUrl);
   };
+}, [selectedImage]);
+const handleImageChange = (
+  event: React.ChangeEvent<HTMLInputElement>,
+) => {
+  const file = event.target.files?.[0];
+
+  if (!file) return;
+
+  const validationError = validateCourseImage(file);
+
+  setErrors((current) => ({
+    ...current,
+    image: validationError,
+  }));
+
+  if (validationError) {
+    event.target.value = "";
+    return;
+  }
+
+  setSelectedImage(file);
+  event.target.value = "";
+};
 
   const handleSave = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!course) {
+    if (!course || isSaving) return;
+
+    const nextErrors = validateCourseForm(title, description, selectedImage);
+
+    setErrors(nextErrors);
+
+    if (hasCourseFormErrors(nextErrors)) {
       return;
     }
 
-    // setError('')
-    //setSuccess('')
     setIsSaving(true);
 
     try {
@@ -213,33 +248,83 @@ function CourseSettingsPage() {
         </div>
       </div>
 
-      <form className="course-settings-form" onSubmit={handleSave}>
+      <form className="course-settings-form" onSubmit={handleSave} noValidate>
         <section className="settings-section">
           <h2>Основна інформація</h2>
 
-          <div className="form-group">
-            <label htmlFor="courseTitle">Назва</label>
-
+          <FormField
+            id="courseTitle"
+            label="Назва курсу"
+            required
+            error={errors.title}
+            hint={`${title.length}/200 символів`}
+          >
             <input
               id="courseTitle"
               value={title}
               maxLength={200}
-              onChange={(event) => setTitle(event.target.value)}
-              required
+              disabled={isSaving}
+              aria-invalid={!!errors.title}
+              aria-describedby={
+                errors.title ? "courseTitle-error" : "courseTitle-hint"
+              }
+              onBlur={() => {
+                setErrors((current) => ({
+                  ...current,
+                  title: validateCourseTitle(title),
+                }));
+              }}
+              onChange={(event) => {
+                const value = event.target.value;
+                setTitle(value);
+
+                if (errors.title) {
+                  setErrors((current) => ({
+                    ...current,
+                    title: validateCourseTitle(value),
+                  }));
+                }
+              }}
             />
-          </div>
+          </FormField>
 
-          <div className="form-group">
-            <label htmlFor="courseDescription">Опис</label>
-
+          <FormField
+            id="courseDescription"
+            label="Опис"
+            error={errors.description}
+            hint={`${description.length}/2000 символів`}
+          >
             <textarea
               id="courseDescription"
               value={description}
               maxLength={2000}
               rows={7}
-              onChange={(event) => setDescription(event.target.value)}
+              disabled={isSaving}
+              aria-invalid={!!errors.description}
+              aria-describedby={
+                errors.description
+                  ? "courseDescription-error"
+                  : "courseDescription-hint"
+              }
+              onBlur={() => {
+                setErrors((current) => ({
+                  ...current,
+                  description: validateCourseDescription(description),
+                }));
+              }}
+              onChange={(event) => {
+                const value = event.target.value;
+                setDescription(value);
+
+                if (errors.description) {
+                  setErrors((current) => ({
+                    ...current,
+                    description: validateCourseDescription(value),
+                  }));
+                }
+              }}
             />
-          </div>
+          </FormField>
 
           <div className="visibility-setting">
             <div>
@@ -284,16 +369,25 @@ function CourseSettingsPage() {
             </div>
 
             <div className="course-image-actions">
-              <label className="secondary-button">
+              <label
+                className={`secondary-button ${
+                  errors.image ? "course-image-button--error" : ""
+                }`}
+              >
                 Обрати зображення
                 <input
                   type="file"
-                  accept="image/*"
+                  accept=".jpg,.jpeg,.png,.webp"
                   hidden
+                  disabled={isSaving}
                   onChange={handleImageChange}
                 />
               </label>
-
+              {errors.image && (
+                <p className="form-field-error" role="alert">
+                  {errors.image}
+                </p>
+              )}
               {imagePreview && (
                 <button
                   type="button"

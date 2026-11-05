@@ -11,14 +11,13 @@ import MyCoursesPage from "../pages/MyCoursesPage";
 import InvitationPage from "../pages/InvitationPage";
 import CreateTestPage from "../pages/CreateTestPage";
 import TestEditorPage from "../pages/TestEditorPage";
-
+import StudentAttemptResultPage from "../pages/StudentAttemptResultPage";
 import TestDetailsPage from "../pages/TestDetailsPage";
 import TestTakingPage from "../pages/TestTakingPage";
 import TestResultPage from "../pages/TestResultPage";
 
 import TeacherTestResultsPage from "../pages/TeacherTestResultsPage";
 import TeacherAttemptDetailsPage from "../pages/TeacherAttemptDetailsPage";
-
 
 function AppRoutes() {
   return (
@@ -55,21 +54,28 @@ function AppRoutes() {
             path="/attempts/:attemptId/result"
             element={<TestResultPage />}
           />
-<Route
-  path="/tests/:testId/results"
-  element={<TeacherTestResultsPage />}
-/>
 
-<Route
-  path="/attempts/:attemptId/details"
-  element={<TeacherAttemptDetailsPage />}
-/>
-
+          <Route
+            path="/attempts/:attemptId/review"
+            element={<StudentAttemptResultPage />}
+          />
+          <Route
+            path="/tests/:testId/results"
+            element={<TeacherTestResultsPage />}
+          />
+          <Route
+            path="/attempts/:attemptId/details"
+            element={<TeacherAttemptDetailsPage />}
+          />
+          <Route
+            path="/attempts/:attemptId/review"
+            element={<StudentAttemptResultPage />}
+          />
         </Route>
       </Route>
 
       <Route path="/" element={<Navigate to="/login" replace />} />
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<Navigate to="/courses" replace />} />
     </Routes>
   );
 }

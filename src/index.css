@@ -861,3 +861,43 @@ a {
     width: 100%;
   }
 }
+
+
+/* PROFILE VALIDATION */
+
+.profile-form .form-field {
+  min-width: 0;
+}
+
+.profile-form .form-field-control input,
+.profile-form .form-field-control textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.profile-form .form-field--error input,
+.profile-form .form-field--error textarea {
+  border-color: #dc2626;
+}
+
+.profile-form .form-field--error input:focus,
+.profile-form .form-field--error textarea:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+
+.profile-avatar-actions .form-field-error {
+  color: #dc2626;
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 4px 0 0;
+}
+
+.avatar-upload-button--error {
+  border-color: #dc2626;
+  color: #dc2626;
+}
+
+.avatar-upload-button--error:hover {
+  border-color: #b91c1c;
+}

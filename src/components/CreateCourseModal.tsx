@@ -2,7 +2,15 @@ import { useEffect, useState } from 'react'
 import { AxiosError } from 'axios'
 
 import { createCourse } from '../api/coursesApi'
+import FormField from "./ui/FormField";
 
+import {
+  validateCourseTitle,
+  validateCourseDescription,
+  validateCourseForm,
+  hasCourseFormErrors,
+  type CourseFormErrors,
+} from "../utils/courseValidation";
 import {
   CourseVisibility,
   type Course,
@@ -25,30 +33,29 @@ function CreateCourseModal({
 
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState('')
+const [errors, setErrors] = useState<CourseFormErrors>({});
+ useEffect(() => {
+  if (!isOpen) return;
 
-  useEffect(() => {
-    if (!isOpen) {
-      return
+  const handleEscape = (event: KeyboardEvent) => {
+    if (event.key === "Escape" && !isSaving) {
+      resetForm();
+      onClose();
     }
+  };
 
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose()
-      }
-    }
+  document.addEventListener("keydown", handleEscape);
 
-    document.addEventListener('keydown', handleEscape)
-
-    return () => {
-      document.removeEventListener('keydown', handleEscape)
-    }
-  }, [isOpen, onClose])
-
+  return () => {
+    document.removeEventListener("keydown", handleEscape);
+  };
+}, [isOpen, isSaving, onClose]);
   const resetForm = () => {
     setTitle('')
     setDescription('')
     setIsPublic(false)
     setError('')
+    setErrors({});
   }
 
   const handleClose = () => {
@@ -65,15 +72,20 @@ function CreateCourseModal({
   ) => {
     event.preventDefault()
 
-    const trimmedTitle = title.trim()
+    if (isSaving) return;
 
-    if (!trimmedTitle) {
-      setError('Вкажіть назву курсу.')
-      return
-    }
+const nextErrors = validateCourseForm(title, description);
 
-    setError('')
-    setIsSaving(true)
+setErrors(nextErrors);
+
+if (hasCourseFormErrors(nextErrors)) {
+  return;
+}
+
+const trimmedTitle = title.trim();
+
+setError('');
+setIsSaving(true);
 
     try {
       const course = await createCourse({
@@ -137,50 +149,84 @@ function CreateCourseModal({
 
         <form
           className="create-course-form"
-          onSubmit={handleSubmit}
+          onSubmit={handleSubmit} noValidate
         >
-          <div className="form-group">
-            <label htmlFor="courseTitle">
-              Назва курсу
-            </label>
+        <FormField
+  id="courseTitle"
+  label="Назва курсу"
+  required
+  error={errors.title}
+  hint={`${title.length}/200 символів`}
+>
+  <input
+    id="courseTitle"
+    type="text"
+    placeholder="Наприклад, Основи програмування"
+    value={title}
+    maxLength={200}
+    disabled={isSaving}
+    aria-invalid={!!errors.title}
+    aria-describedby={
+      errors.title ? "courseTitle-error" : "courseTitle-hint"
+    }
+    onBlur={() => {
+      setErrors((current) => ({
+        ...current,
+        title: validateCourseTitle(title),
+      }));
+    }}
+    onChange={(event) => {
+      const value = event.target.value;
+      setTitle(value);
 
-            <input
-              id="courseTitle"
-              type="text"
-              placeholder="Наприклад, Основи програмування"
-              value={title}
-              maxLength={200}
-              onChange={(event) =>
-                setTitle(event.target.value)
-              }
-              required
-            />
+      if (errors.title) {
+        setErrors((current) => ({
+          ...current,
+          title: validateCourseTitle(value),
+        }));
+      }
+    }}
+  />
+</FormField>
 
-            <span className="form-character-count">
-              {title.length}/200
-            </span>
-          </div>
+       <FormField
+  id="courseDescription"
+  label="Опис"
+  error={errors.description}
+  hint={`${description.length}/2000 символів`}
+>
+  <textarea
+    id="courseDescription"
+    placeholder="Коротко опишіть зміст та мету курсу..."
+    value={description}
+    maxLength={2000}
+    rows={5}
+    disabled={isSaving}
+    aria-invalid={!!errors.description}
+    aria-describedby={
+      errors.description
+        ? "courseDescription-error"
+        : "courseDescription-hint"
+    }
+    onBlur={() => {
+      setErrors((current) => ({
+        ...current,
+        description: validateCourseDescription(description),
+      }));
+    }}
+    onChange={(event) => {
+      const value = event.target.value;
+      setDescription(value);
 
-          <div className="form-group">
-            <label htmlFor="courseDescription">
-              Опис
-            </label>
-
-            <textarea
-              id="courseDescription"
-              placeholder="Коротко опишіть зміст та мету курсу..."
-              value={description}
-              maxLength={2000}
-              rows={5}
-              onChange={(event) =>
-                setDescription(event.target.value)
-              }
-            />
-
-            <span className="form-character-count">
-              {description.length}/2000
-            </span>
-          </div>
+      if (errors.description) {
+        setErrors((current) => ({
+          ...current,
+          description: validateCourseDescription(value),
+        }));
+      }
+    }}
+  />
+</FormField>
 
           <div className="visibility-option">
             <div className="visibility-option-content">

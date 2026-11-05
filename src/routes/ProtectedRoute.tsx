@@ -1,13 +1,29 @@
-import { Navigate, Outlet } from 'react-router-dom'
+import {
+  Navigate,
+  Outlet,
+  useLocation,
+} from "react-router-dom";
 
 function ProtectedRoute() {
-  const token = localStorage.getItem('token')
+  const location = useLocation();
+
+  const token = localStorage.getItem("token");
 
   if (!token) {
-    return <Navigate to="/login" replace />
+    const returnUrl =
+      location.pathname +
+      location.search +
+      location.hash;
+
+    return (
+      <Navigate
+        to={`/login?returnUrl=${encodeURIComponent(returnUrl)}`}
+        replace
+      />
+    );
   }
 
-  return <Outlet />
+  return <Outlet />;
 }
 
-export default ProtectedRoute
+export default ProtectedRoute;

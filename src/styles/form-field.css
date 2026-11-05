@@ -1,0 +1,73 @@
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.form-field-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.form-field-required {
+  color: #dc2626;
+  margin-left: 4px;
+}
+
+.form-field-control input,
+.form-field-control textarea,
+.form-field-control select {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 11px 13px;
+  background: #fff;
+  color: #111827;
+  font: inherit;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.form-field-control input:focus,
+.form-field-control textarea:focus,
+.form-field-control select:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+.form-field--error .form-field-control input,
+.form-field--error .form-field-control textarea,
+.form-field--error .form-field-control select {
+  border-color: #dc2626;
+}
+
+.form-field--error .form-field-control input:focus,
+.form-field--error .form-field-control textarea:focus,
+.form-field--error .form-field-control select:focus {
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+
+.form-field-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: #dc2626;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.form-field-error svg {
+  flex-shrink: 0;
+}
+
+.form-field-hint {
+  margin: 0;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.5;
+}
