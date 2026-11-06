@@ -706,3 +706,35 @@
     min-width: 0;
   }
 }
+
+.test-constructor-questions-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.test-constructor-questions-heading .test-btn {
+  flex-shrink: 0;
+}
+
+@media (max-width: 600px) {
+  .test-constructor-questions-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .test-constructor-questions-heading .test-btn {
+    width: 100%;
+  }
+}
+
+.test-constructor-validation-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: 500;
+}

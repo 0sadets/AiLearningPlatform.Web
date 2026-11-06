@@ -6,9 +6,13 @@ import {
   LoaderCircle,
   Plus,
   Sparkles,
-  XCircle,ExternalLink,
+  XCircle,
+  ExternalLink,
+  ChevronDown,
+  ChevronUp,
+  RotateCcw,
 } from "lucide-react";
-
+import { QuestionType } from "../../types/testQuestion";
 import { getCourseMaterials } from "../../api/coursesApi";
 import {
   cancelAiGeneration,
@@ -116,7 +120,13 @@ function AiGenerationPanel({
 
   const [job, setJob] = useState<AiGenerationJobDto | null>(null);
   const [result, setResult] = useState<AiGenerationResultDto | null>(null);
+  const [expandedResultIndex, setExpandedResultIndex] = useState<number | null>(
+    null,
+  );
 
+  const [resultLoadError, setResultLoadError] = useState("");
+
+  const [confirmReset, setConfirmReset] = useState(false);
   const [starting, setStarting] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [loadingResult, setLoadingResult] = useState(false);
@@ -134,14 +144,14 @@ function AiGenerationPanel({
 
         if (!active) return;
 
-      setMaterials(
-        items.filter(
-          (item) =>
-            item.type === CourseMaterialType.Text ||
-            item.type === CourseMaterialType.File ||
-            item.type === CourseMaterialType.Link,
-        ),
-      );
+        setMaterials(
+          items.filter(
+            (item) =>
+              item.type === CourseMaterialType.Text ||
+              item.type === CourseMaterialType.File ||
+              item.type === CourseMaterialType.Link,
+          ),
+        );
       } catch (error) {
         if (!active) return;
 
@@ -198,6 +208,67 @@ function AiGenerationPanel({
       if (timeout) clearTimeout(timeout);
     };
   }, [courseId, jobId]);
+
+  useEffect(() => {
+    if (
+      !jobId ||
+      !job?.isFinished ||
+      job.generatedQuestionsCount <= 0 ||
+      importedJobIds.includes(jobId)
+    ) {
+      return;
+    }
+
+    let active = true;
+
+    async function loadGeneratedQuestions() {
+      setLoadingResult(true);
+      setResultLoadError("");
+
+      try {
+        const data = await getAiGenerationResult(courseId, jobId!);
+
+        if (!active) return;
+
+        if (!data) {
+          setResultLoadError(
+            "Результат генерації поки недоступний. Спробуйте отримати його повторно.",
+          );
+          return;
+        }
+
+        setResult(data);
+        setExpandedResultIndex(null);
+      } catch (error) {
+        if (!active) return;
+
+        if (!isUnauthorizedError(error)) {
+          setResultLoadError(
+            getTestApiError(
+              error,
+              "Не вдалося завантажити згенеровані питання.",
+            ),
+          );
+        }
+      } finally {
+        if (active) {
+          setLoadingResult(false);
+        }
+      }
+    }
+
+    void loadGeneratedQuestions();
+
+    return () => {
+      active = false;
+    };
+  }, [
+    courseId,
+    jobId,
+    job?.isFinished,
+    job?.generatedQuestionsCount,
+    importedJobIds,
+  ]);
 
   const totalRequested =
     counts.singleChoice + counts.multipleChoice + counts.trueFalse;
@@ -358,6 +429,9 @@ function AiGenerationPanel({
 
     setStarting(true);
     setResult(null);
+    setResultLoadError("");
+    setExpandedResultIndex(null);
+    setConfirmReset(false);
     setJobError("");
 
     try {
@@ -417,21 +491,24 @@ function AiGenerationPanel({
     if (!jobId || loadingResult || alreadyImported) return;
 
     setLoadingResult(true);
+    setResultLoadError("");
 
     try {
       const data = await getAiGenerationResult(courseId, jobId);
 
       if (!data) {
-        showToast("Генерація ще завершується. Спробуйте пізніше.", "info");
+        setResultLoadError(
+          "Результат генерації ще недоступний. Спробуйте повторно.",
+        );
         return;
       }
 
       setResult(data);
+      setExpandedResultIndex(null);
     } catch (error) {
       if (!isUnauthorizedError(error)) {
-        showToast(
+        setResultLoadError(
           getTestApiError(error, "Не вдалося отримати згенеровані питання."),
-          "error",
         );
       }
     } finally {
@@ -440,10 +517,19 @@ function AiGenerationPanel({
   }
 
   function handleImport() {
-    if (!jobId || !result || alreadyImported || disabled) return;
+    if (
+      !jobId ||
+      !result ||
+      result.questions.length === 0 ||
+      alreadyImported ||
+      disabled
+    ) {
+      return;
+    }
 
     onImport(jobId, result);
 
+    setExpandedResultIndex(null);
     setResult(null);
 
     showToast(
@@ -452,17 +538,18 @@ function AiGenerationPanel({
     );
   }
 
-  function clearFinishedJob() {
-    if (!job?.isFinished || !jobId) return;
+  function handleRequestReset() {
+    if (!job?.isFinished || loadingResult) return;
 
-    // Не дозволяємо випадково відкинути ще не імпортований результат.
-    if (
-      (job.status === "Completed" ||
-        job.status === "PartiallyCompleted" ||
-        job.generatedQuestionsCount > 0) &&
-      !alreadyImported
-    ) {
-      showToast("Спочатку отримайте й додайте результат генерації.", "info");
+    if (alreadyImported || job.generatedQuestionsCount === 0) {
+      clearFinishedJob();
+      return;
+    }
+
+    setConfirmReset(true);
+  }
+  function clearFinishedJob() {
+    if (!job?.isFinished || !jobId || loadingResult) {
       return;
     }
 
@@ -471,9 +558,11 @@ function AiGenerationPanel({
     setJobId(null);
     setJob(null);
     setResult(null);
+    setResultLoadError("");
     setJobError("");
+    setExpandedResultIndex(null);
+    setConfirmReset(false);
   }
-
   const statusLabel: Record<string, string> = {
     Pending: "Очікує на обробку",
     Processing: "Генерація триває",
@@ -482,6 +571,25 @@ function AiGenerationPanel({
     Failed: "Помилка генерації",
     Cancelled: "Генерацію скасовано",
   };
+
+  function getQuestionTypeLabel(type: QuestionType): string {
+    switch (type) {
+      case QuestionType.SingleChoice:
+        return "Одна правильна відповідь";
+
+      case QuestionType.MultipleChoice:
+        return "Декілька правильних відповідей";
+
+      case QuestionType.TrueFalse:
+        return "Так / Ні";
+
+      case QuestionType.Text:
+        return "Текстова відповідь";
+
+      default:
+        return "Питання";
+    }
+  }
 
   return (
     <div className="ai-generation-panel">
@@ -505,9 +613,8 @@ function AiGenerationPanel({
               Матеріали курсу
             </strong>
             <p>
-              Оберіть від 1 до 5 матеріалів. Підтримуються текстові
-              матеріали, файли та публічні HTTPS-посилання на HTML,
-              PDF, TXT і DOCX.
+              Оберіть від 1 до 5 матеріалів. Підтримуються текстові матеріали,
+              файли та публічні HTTPS-посилання на HTML, PDF, TXT і DOCX.
             </p>
 
             {materialsLoading ? (
@@ -515,10 +622,10 @@ function AiGenerationPanel({
             ) : materialsError ? (
               <div className="ai-generation-warning">{materialsError}</div>
             ) : materials.length === 0 ? (
-           <div className="ai-generation-warning">
-              У курсі поки немає навчальних матеріалів для AI-генерації.
-              Додайте текст, файл або посилання.
-            </div>
+              <div className="ai-generation-warning">
+                У курсі поки немає навчальних матеріалів для AI-генерації.
+                Додайте текст, файл або посилання.
+              </div>
             ) : (
               <div className="ai-generation-materials">
                 {materials.map((material) => {
@@ -535,57 +642,57 @@ function AiGenerationPanel({
                         selected ? "ai-generation-material-card--selected" : ""
                       }`}
                     >
-                   <div className="ai-generation-material-row">
-  <label className="ai-generation-material">
-    <input
-      type="checkbox"
-      checked={selected}
-      disabled={
-        disabled || (!selected && materialIds.length >= 5)
-      }
-      onChange={() => toggleMaterial(material.id)}
-    />
+                      <div className="ai-generation-material-row">
+                        <label className="ai-generation-material">
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            disabled={
+                              disabled || (!selected && materialIds.length >= 5)
+                            }
+                            onChange={() => toggleMaterial(material.id)}
+                          />
 
-    <span>{material.title}</span>
+                          <span>{material.title}</span>
 
-   <small>
-      {material.type === CourseMaterialType.Text
-        ? "Текст"
-        : material.type === CourseMaterialType.Link
-          ? "Посилання"
-          : isPdf
-            ? material.pageCount != null
-              ? `PDF · ${material.pageCount} стор.`
-              : "PDF"
-            : "Файл"}
-    </small>
-  </label>
+                          <small>
+                            {material.type === CourseMaterialType.Text
+                              ? "Текст"
+                              : material.type === CourseMaterialType.Link
+                                ? "Посилання"
+                                : isPdf
+                                  ? material.pageCount != null
+                                    ? `PDF · ${material.pageCount} стор.`
+                                    : "PDF"
+                                  : "Файл"}
+                          </small>
+                        </label>
 
-  {(() => {
-  const materialUrl =
-    material.type === CourseMaterialType.Link
-      ? getSafeLinkUrl(material.url)
-      : material.type === CourseMaterialType.File
-        ? material.fileUrl
-        : null;
+                        {(() => {
+                          const materialUrl =
+                            material.type === CourseMaterialType.Link
+                              ? getSafeLinkUrl(material.url)
+                              : material.type === CourseMaterialType.File
+                                ? material.fileUrl
+                                : null;
 
-  if (!materialUrl) return null;
+                          if (!materialUrl) return null;
 
-  return (
-    <a
-      href={materialUrl}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="ai-generation-material-open"
-      title="Відкрити матеріал у новій вкладці"
-      aria-label={`Відкрити матеріал «${material.title}»`}
-      onClick={(event) => event.stopPropagation()}
-    >
-      <ExternalLink size={17} />
-    </a>
-  );
-})()}
-</div>
+                          return (
+                            <a
+                              href={materialUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="ai-generation-material-open"
+                              title="Відкрити матеріал у новій вкладці"
+                              aria-label={`Відкрити матеріал «${material.title}»`}
+                              onClick={(event) => event.stopPropagation()}
+                            >
+                              <ExternalLink size={17} />
+                            </a>
+                          );
+                        })()}
+                      </div>
 
                       {selected && isPdf && (
                         <div className="ai-generation-page-settings">
@@ -794,10 +901,7 @@ function AiGenerationPanel({
           </div>
 
           <div className="ai-generation-progress-heading">
-            <span>
-              Прийнято {job?.generatedQuestionsCount ?? 0} із{" "}
-              {job?.requestedQuestionsCount ?? "—"} питань
-            </span>
+            <span>Прийнято {job?.generatedQuestionsCount ?? 0} питань</span>
 
             <strong>{job?.progressPercentage ?? 0}%</strong>
           </div>
@@ -834,34 +938,34 @@ function AiGenerationPanel({
             </div>
           )}
 
-         {job?.status === "Failed" && (
-  <div
-    className="ai-generation-warning"
-    role="alert"
-  >
-    <AlertCircle size={18} />
+          {job?.status === "Failed" && (
+            <div className="ai-generation-warning" role="alert">
+              <AlertCircle size={18} />
 
-    <span>
-      {job.errorMessage?.trim() ||
-        "Не вдалося згенерувати питання. Перевірте доступність навчальних матеріалів і спробуйте ще раз."}
-    </span>
-  </div>
-)}
+              <span>
+                {job.errorMessage?.trim() ||
+                  "Не вдалося згенерувати питання. Перевірте доступність навчальних матеріалів і спробуйте ще раз."}
+              </span>
+            </div>
+          )}
 
-{job?.status !== "Failed" && job?.errorMessage && (
-  <div className="ai-generation-warning" role="alert">
-    <AlertCircle size={18} />
-    <span>{job.errorMessage}</span>
-  </div>
-)}
+          {job?.status !== "Failed" && job?.errorMessage && (
+            <div className="ai-generation-warning" role="alert">
+              <AlertCircle size={18} />
+              <span>{job.errorMessage}</span>
+            </div>
+          )}
 
           {job?.isFinished && job.generatedQuestionsCount > 0 && (
             <div className="ai-generation-finished">
               <CheckCircle2 size={19} />
+
               <span>
-                {job.status === "PartiallyCompleted"
-                  ? "Частину питань створено. Доступний результат можна додати до конструктора."
-                  : "Готові питання можна додати до конструктора."}
+                {alreadyImported
+                  ? "Згенеровані питання додано до конструктора. Ви можете переглянути та відредагувати їх нижче."
+                  : job.status === "PartiallyCompleted"
+                    ? "Частину питань створено. Доступні питання можна переглянути та додати до конструктора."
+                    : "Готові питання можна переглянути та додати до конструктора."}
               </span>
             </div>
           )}
@@ -869,47 +973,173 @@ function AiGenerationPanel({
           {job?.isFinished &&
             job.generatedQuestionsCount > 0 &&
             !alreadyImported &&
-            !result && (
-              <button
-                type="button"
-                className="test-btn test-btn--primary"
-                onClick={handleLoadResult}
-                disabled={disabled || loadingResult}
-              >
-                {loadingResult
-                  ? "Отримання результату..."
-                  : "Переглянути згенеровані питання"}
-              </button>
+            loadingResult && (
+              <div className="ai-generation-result-loading">
+                <LoaderCircle size={18} className="ai-generation-spinner" />
+                Отримання згенерованих питань...
+              </div>
+            )}
+
+          {job?.isFinished &&
+            job.generatedQuestionsCount > 0 &&
+            !alreadyImported &&
+            !loadingResult &&
+            resultLoadError && (
+              <div className="ai-generation-warning">
+                <AlertCircle size={18} />
+
+                <span>{resultLoadError}</span>
+
+                <button
+                  type="button"
+                  className="ai-generation-retry"
+                  onClick={handleLoadResult}
+                  disabled={disabled}
+                >
+                  Повторити
+                </button>
+              </div>
             )}
 
           {result && !alreadyImported && (
             <div className="ai-generation-result">
-              <strong>Згенеровано {result.questions.length} питань</strong>
+              <div className="ai-generation-result-heading">
+                <h4>Згенеровані питання ({result.questions.length})</h4>
+
+                <span>LearnAI</span>
+              </div>
 
               {result.isPartialResult && (
-                <p>Результат частковий: деякі питання не вдалося створити.</p>
+                <div className="ai-generation-warning">
+                  <AlertCircle size={17} />
+                  <span>
+                    Результат частковий: не всі запитані питання вдалося
+                    створити.
+                  </span>
+                </div>
               )}
 
-              {result.warnings.map((warning, index) => (
-                <p key={index}>{warning}</p>
+              {[
+                ...new Set(
+                  result.warnings.map((w) => w.trim()).filter(Boolean),
+                ),
+              ].map((warning) => (
+                <p key={warning} className="ai-generation-result-note">
+                  {warning}
+                </p>
               ))}
 
-              <button
-                type="button"
-                className="test-btn test-btn--primary"
-                disabled={disabled}
-                onClick={handleImport}
-              >
-                <Plus size={17} />
-                Додати {result.questions.length} питань до тесту
-              </button>
-            </div>
-          )}
+              <div className="ai-generation-preview-list">
+                {result.questions.map((question, index) => {
+                  const expanded = expandedResultIndex === index;
 
-          {alreadyImported && (
-            <div className="ai-generation-finished">
-              <CheckCircle2 size={18} />
-              Питання вже додано до конструктора.
+                  return (
+                    <div
+                      key={index}
+                      className={`ai-generation-preview-card ${
+                        expanded ? "ai-generation-preview-card--expanded" : ""
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        className="ai-generation-preview-toggle"
+                        onClick={() =>
+                          setExpandedResultIndex(expanded ? null : index)
+                        }
+                        aria-expanded={expanded}
+                      >
+                        <div className="ai-generation-preview-number">
+                          {index + 1}
+                        </div>
+
+                        <div className="ai-generation-preview-info">
+                          <strong>{question.text}</strong>
+
+                          <small>
+                            {getQuestionTypeLabel(question.type)}
+                            {" · "}
+                            {question.points} бал(ів)
+                            {question.sourceMaterialTitle && (
+                              <>
+                                {" · "}
+                                Джерело: {question.sourceMaterialTitle}
+                              </>
+                            )}
+                          </small>
+                        </div>
+
+                        {expanded ? (
+                          <ChevronUp size={19} />
+                        ) : (
+                          <ChevronDown size={19} />
+                        )}
+                      </button>
+
+                      {expanded && (
+                        <div className="ai-generation-preview-body">
+                          <strong className="ai-generation-preview-section-title">
+                            Варіанти відповідей
+                          </strong>
+
+                          <div className="ai-generation-preview-options">
+                            {question.options.map((option, optionIndex) => (
+                              <div
+                                key={optionIndex}
+                                className={`ai-generation-preview-option ${
+                                  option.isCorrect
+                                    ? "ai-generation-preview-option--correct"
+                                    : ""
+                                }`}
+                              >
+                                <span className="ai-generation-preview-option-letter">
+                                  {String.fromCharCode(65 + optionIndex)}
+                                </span>
+
+                                <span>{option.text}</span>
+
+                                {option.isCorrect && <CheckCircle2 size={17} />}
+                              </div>
+                            ))}
+                          </div>
+
+                          {question.sourceExcerpt && (
+                            <div className="ai-generation-preview-source">
+                              <strong>Джерело LearnAI</strong>
+
+                              <p>{question.sourceExcerpt}</p>
+
+                              <small>
+                                {question.sourceMaterialTitle ||
+                                  "Матеріал курсу"}
+
+                                {question.sourceChunkIndex != null &&
+                                  ` · Фрагмент ${question.sourceChunkIndex}`}
+                              </small>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="ai-generation-result-actions">
+                <button
+                  type="button"
+                  className="test-btn test-btn--primary"
+                  onClick={handleImport}
+                  disabled={disabled || result.questions.length === 0}
+                >
+                  <Plus size={17} />
+                  Додати {result.questions.length} питань до тесту
+                </button>
+
+                <p>
+                  Після додавання ви зможете редагувати питання та правильні
+                  відповіді в конструкторі.
+                </p>
+              </div>
             </div>
           )}
 
@@ -930,13 +1160,72 @@ function AiGenerationPanel({
           )}
 
           {job?.isFinished && (
-            <button
-              type="button"
-              className="ai-generation-reset"
-              onClick={clearFinishedJob}
-            >
-              Налаштувати наступну генерацію
-            </button>
+            <div className="ai-generation-next">
+              <div className="ai-generation-next-heading">
+                <div>
+                  <strong>
+                    {alreadyImported
+                      ? "Продовжити генерацію питань"
+                      : "Потрібна інша генерація?"}
+                  </strong>
+
+                  <p>
+                    {alreadyImported
+                      ? "Ви можете створити додаткові питання з цих або інших навчальних матеріалів."
+                      : "Ви можете повернутися до налаштувань і створити нову генерацію питань."}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  className="ai-generation-next-button"
+                  onClick={handleRequestReset}
+                  disabled={loadingResult || disabled}
+                >
+                  <RotateCcw size={17} />
+
+                  {alreadyImported
+                    ? "Почати нову генерацію"
+                    : "Налаштувати наступну генерацію"}
+                </button>
+              </div>
+
+              {confirmReset && (
+                <div
+                  className="ai-generation-reset-confirm"
+                  role="alertdialog"
+                  aria-labelledby="ai-reset-title"
+                  aria-describedby="ai-reset-description"
+                >
+                  <strong id="ai-reset-title">
+                    Скинути поточний результат?
+                  </strong>
+
+                  <p id="ai-reset-description">
+                    Згенеровані питання ще не додано до тесту. Якщо продовжити,
+                    поточний результат буде прибрано з цієї форми.
+                  </p>
+
+                  <div className="ai-generation-reset-actions">
+                    <button
+                      type="button"
+                      className="test-btn test-btn--secondary"
+                      onClick={() => setConfirmReset(false)}
+                    >
+                      Залишити результат
+                    </button>
+
+                    <button
+                      type="button"
+                      className="test-btn test-btn--danger-outline"
+                      onClick={clearFinishedJob}
+                    >
+                      Скинути й продовжити
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}

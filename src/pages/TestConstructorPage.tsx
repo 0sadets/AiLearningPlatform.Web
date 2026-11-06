@@ -9,6 +9,7 @@ import {
   Save,
   Send,
   Trash2,
+  AlertCircle,
 } from "lucide-react";
 
 import { getCourseById } from "../api/coursesApi";
@@ -96,15 +97,20 @@ function revalidateTouchedQuestionErrors(
     updated.options = {};
 
     for (const key of Object.keys(previous.options)) {
-      updated.options[key] =
-        fresh.options?.[key] ?? "";
+      if (!question.answerOptions.some((option) => option.key === key)) {
+        continue;
+      }
+
+      updated.options[key] = fresh.options?.[key] ?? "";
     }
   }
 
   return updated;
 }
 type Action =
-  | { kind: "publish" | "archive" | "deleteTest" }
+  | {
+      kind: "publish" | "archive" | "deleteTest" | "removeAllQuestions";
+    }
   | { kind: "removeQuestion"; key: string };
 
 type Props = {
@@ -144,7 +150,14 @@ function confirmationDetails(action: Action) {
         description:
           "Студенти отримають доступ до тесту. Після публікації змінювати питання й налаштування буде неможливо.",
       };
-
+    case "removeAllQuestions":
+      return {
+        title: "Видалити всі питання?",
+        confirmLabel: "Видалити всі",
+        danger: true,
+        description:
+          "Усі питання будуть прибрані з конструктора, включно зі згенерованими LearnAI. Зміни застосуються до тесту після збереження чернетки.",
+      };
     case "archive":
       return {
         title: "Архівувати тест?",
@@ -207,8 +220,9 @@ function TestConstructorPage({ mode }: Props) {
   const [draftReady, setDraftReady] = useState(false);
 
   const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
-const [scrollToQuestionKey, setScrollToQuestionKey] =
-  useState<string | null>(null);
+  const [scrollToQuestionKey, setScrollToQuestionKey] = useState<string | null>(
+    null,
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -359,20 +373,24 @@ const [scrollToQuestionKey, setScrollToQuestionKey] =
     (sum, question) => sum + (Number(question.points) || 0),
     0,
   );
-useEffect(() => {
-  if (!scrollToQuestionKey) return;
 
-  const element = document.getElementById(
-    `test-question-${scrollToQuestionKey}`,
+  const hasInvalidQuestions = questions.some((question) =>
+    hasQuestionDraftErrors(getQuestionDraftErrors(question)),
   );
+  useEffect(() => {
+    if (!scrollToQuestionKey) return;
 
-  element?.scrollIntoView({
-    behavior: "smooth",
-    block: "center",
-  });
+    const element = document.getElementById(
+      `test-question-${scrollToQuestionKey}`,
+    );
 
-  setScrollToQuestionKey(null);
-}, [scrollToQuestionKey, expandedKey]);
+    element?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+
+    setScrollToQuestionKey(null);
+  }, [scrollToQuestionKey, expandedKey]);
   const backPath = courseId ? `/courses/${courseId}` : "/courses";
 
   function updateSettings(next: TestSettingsValues) {
@@ -404,34 +422,26 @@ useEffect(() => {
     }));
   }
 
-function updateQuestion(
-  key: string,
-  question: QuestionDraft,
-) {
-  setQuestions((current) =>
-    current.map((item) =>
-      item.key === key ? question : item,
-    ),
-  );
+  function updateQuestion(key: string, question: QuestionDraft) {
+    setQuestions((current) =>
+      current.map((item) => (item.key === key ? question : item)),
+    );
 
-  setQuestionErrors((current) => {
-    const previous = current[key];
+    setQuestionErrors((current) => {
+      const previous = current[key];
 
-    if (!validationSubmitted && !previous) {
-      return current;
-    }
+      if (!validationSubmitted && !previous) {
+        return current;
+      }
 
-    return {
-      ...current,
-      [key]: validationSubmitted
-        ? getQuestionDraftErrors(question)
-        : revalidateTouchedQuestionErrors(
-            previous ?? {},
-            question,
-          ),
-    };
-  });
-}
+      return {
+        ...current,
+        [key]: validationSubmitted
+          ? getQuestionDraftErrors(question)
+          : revalidateTouchedQuestionErrors(previous ?? {}, question),
+      };
+    });
+  }
 
   function validateQuestionField(
     questionKey: string,
@@ -553,14 +563,9 @@ function updateQuestion(
       if (hasQuestionDraftErrors(errors)) {
         nextQuestionErrors[question.key] = errors;
 
-       if (firstInvalidQuestionKey) {
-  setExpandedKey(firstInvalidQuestionKey);
-  setScrollToQuestionKey(firstInvalidQuestionKey);
-
-  showToast("Виправте помилки в питаннях тесту.", "error");
-
-  return;
-}
+        if (!firstInvalidQuestionKey) {
+          firstInvalidQuestionKey = question.key;
+        }
       }
     }
 
@@ -597,13 +602,7 @@ function updateQuestion(
 
     if (firstInvalidQuestionKey) {
       setExpandedKey(firstInvalidQuestionKey);
-
-      document
-        .getElementById(`test-question-${firstInvalidQuestionKey}`)
-        ?.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
+      setScrollToQuestionKey(firstInvalidQuestionKey);
 
       showToast("Виправте помилки в питаннях тесту.", "error");
 
@@ -668,9 +667,9 @@ function updateQuestion(
               }
             : current,
         );
-setSettingsErrors({});
-setQuestionErrors({});
-setValidationSubmitted(false);
+        setSettingsErrors({});
+        setQuestionErrors({});
+        setValidationSubmitted(false);
         showToast("Чернетку та всі питання збережено.", "success");
       }
     } catch (error) {
@@ -703,7 +702,21 @@ setValidationSubmitted(false);
       setPendingAction(null);
       return;
     }
+    if (pendingAction.kind === "removeAllQuestions") {
+      setQuestions([]);
 
+      setQuestionErrors({});
+      setValidationSubmitted(false);
+
+      setExpandedKey(null);
+      setScrollToQuestionKey(null);
+
+      setPendingAction(null);
+
+      showToast("Усі питання прибрано з конструктора.", "success");
+
+      return;
+    }
     if (!test || (pendingAction.kind === "publish" && isDirty)) {
       return;
     }
@@ -865,6 +878,18 @@ setValidationSubmitted(false);
                 {questions.length} питань · {totalPoints} балів
               </p>
             </div>
+
+            {!locked && questions.length > 0 && (
+              <button
+                type="button"
+                className="test-btn test-btn--danger-outline"
+                disabled={isProcessing}
+                onClick={() => setPendingAction({ kind: "removeAllQuestions" })}
+              >
+                <Trash2 size={16} />
+                Видалити всі питання
+              </button>
+            )}
           </div>
 
           {questions.length === 0 && (
@@ -918,7 +943,16 @@ setValidationSubmitted(false);
 
         <div className="test-constructor-footer">
           <div className="test-constructor-footer-hint">
-            {isDirty ? "Є незбережені зміни." : "Збереження не публікує тест."}
+            {hasInvalidQuestions ? (
+              <span className="test-constructor-validation-hint">
+                <AlertCircle size={16} />
+                Виправте помилки в питаннях, щоб зберегти тест.
+              </span>
+            ) : isDirty ? (
+              "Є незбережені зміни."
+            ) : (
+              "Збереження не публікує тест."
+            )}
           </div>
 
           <div className="test-constructor-footer-actions">
@@ -966,7 +1000,16 @@ setValidationSubmitted(false);
               <button
                 className="test-btn test-btn--primary"
                 type="submit"
-                disabled={isProcessing || (mode === "edit" && !isDirty)}
+                disabled={
+                  isProcessing ||
+                  hasInvalidQuestions ||
+                  (mode === "edit" && !isDirty)
+                }
+                title={
+                  hasInvalidQuestions
+                    ? "Виправте помилки в питаннях перед збереженням"
+                    : undefined
+                }
               >
                 <Save size={17} />
 
