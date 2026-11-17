@@ -1,4 +1,10 @@
-import { BookOpen, Info, X } from "lucide-react";
+import {
+  BookOpen,
+  Info,
+  Pencil,
+  Trash2,
+  X,
+} from "lucide-react";
 
 import {
   KnowledgeRelationEvidenceRole,
@@ -23,6 +29,18 @@ interface Props {
   topics: CourseKnowledgeTopicsDto | null;
   selected: KnowledgeGraphSelection;
   onSelect: (selection: KnowledgeGraphSelection) => void;
+
+  isOwner: boolean;
+  isBusy: boolean;
+
+  onEditConcept: (conceptId: number) => void;
+  onDeleteConcept: (conceptId: number) => void;
+
+  onEditRelation: (relationId: number) => void;
+  onDeleteRelation: (relationId: number) => void;
+
+  onEditTopic: (topicId: number) => void;
+  onDeleteTopic: (topicId: number) => void;
 }
 
 function EvidenceList({
@@ -92,6 +110,14 @@ export default function KnowledgeGraphDetailsPanel({
   topics,
   selected,
   onSelect,
+  isOwner,
+  isBusy,
+  onEditConcept,
+  onDeleteConcept,
+  onEditRelation,
+  onDeleteRelation,
+  onEditTopic,
+  onDeleteTopic,
 }: Props) {
   if (!selected) {
     return (
@@ -188,8 +214,88 @@ export default function KnowledgeGraphDetailsPanel({
         >
           <X size={18} />
         </button>
-      </div>
+          </div>
 
+      {/* Дії власника для вибраного поняття */}
+
+      {concept && isOwner && (
+        <div className="kg-details-actions">
+          <button
+            type="button"
+            className="secondary-button kg-details-edit-button"
+            disabled={isBusy}
+            onClick={() => onEditConcept(concept.id)}
+          >
+            <Pencil size={15} />
+            Редагувати
+          </button>
+
+          <button
+            type="button"
+            className="kg-details-delete-button"
+            disabled={isBusy}
+            onClick={() => onDeleteConcept(concept.id)}
+            title="Видалити поняття"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+      )}
+{/* Дії власника для семантичного зв'язку */}
+
+{relation && isOwner && (
+  <div className="kg-details-actions">
+    <button
+      type="button"
+      className="secondary-button kg-details-edit-button"
+      disabled={isBusy}
+      onClick={() => onEditRelation(relation.id)}
+    >
+      <Pencil size={15} />
+      Редагувати
+    </button>
+
+    <button
+      type="button"
+      className="kg-details-delete-button"
+      disabled={isBusy}
+      onClick={() => onDeleteRelation(relation.id)}
+      aria-label="Видалити семантичний зв'язок"
+      title="Видалити зв'язок"
+    >
+      <Trash2 size={16} />
+    </button>
+  </div>
+)}
+
+{topic && isOwner && topics?.isCurrent && (
+  <div className="kg-details-actions">
+    <button
+      type="button"
+      className="secondary-button kg-details-edit-button"
+      disabled={isBusy}
+      onClick={() => onEditTopic(topic.id)}
+    >
+      <Pencil size={15} />
+      Редагувати
+    </button>
+
+    <button
+      type="button"
+      className="kg-details-delete-button"
+      disabled={isBusy || topics.topics.length <= 1}
+      onClick={() => onDeleteTopic(topic.id)}
+      aria-label="Видалити навчальну тему"
+      title={
+        topics.topics.length <= 1
+          ? "Не можна видалити останню навчальну тему"
+          : "Видалити навчальну тему"
+      }
+    >
+      <Trash2 size={16} />
+    </button>
+  </div>
+)}
       <div className="kg-details-body">
         {concept && (
           <>

@@ -33,6 +33,7 @@ type KnowledgeNodeData = {
   label: string;
   subtitle: string;
   kind: "concept" | "topic";
+  order?: number;
   dimmed: boolean;
 } & Record<string, unknown>;
 
@@ -79,11 +80,11 @@ function KnowledgeNode({
         isConnectable={false}
       />
 
-      <span className="kg-node-kind">
-        {data.kind === "topic"
-          ? "Навчальна тема"
-          : "Поняття"}
-      </span>
+<span className="kg-node-kind">
+  {data.kind === "topic"
+    ? `Навчальна тема · №${data.order}`
+    : "Поняття"}
+</span>
 
     <strong
   className="kg-node-title"
@@ -168,6 +169,96 @@ function applyAutomaticLayout(
   });
 }
 
+function applyTopicsLayout(
+  nodes: KnowledgeFlowNode[],
+  graph: CourseKnowledgeGraphDto,
+  topics: CourseKnowledgeTopicsDto,
+): KnowledgeFlowNode[] {
+  const sortedTopics = [...topics.topics].sort(
+    (a, b) => a.order - b.order || a.id - b.id,
+  );
+
+  const activeConceptIds = new Set(
+    graph.concepts.map((concept) => concept.id),
+  );
+
+  const primaryTopicIds = new Map<number, number>();
+
+  for (const topic of sortedTopics) {
+    for (const conceptId of topic.conceptIds) {
+      if (
+        activeConceptIds.has(conceptId) &&
+        !primaryTopicIds.has(conceptId)
+      ) {
+        primaryTopicIds.set(conceptId, topic.id);
+      }
+    }
+  }
+
+  const positions = new Map<
+    string,
+    { x: number; y: number }
+  >();
+
+  const topicX = 40;
+  const conceptX = 470;
+  const conceptStep = 148;
+  const groupGap = 52;
+
+  let currentY = 40;
+
+  for (const topic of sortedTopics) {
+    const groupConcepts = graph.concepts
+      .filter(
+        (concept) =>
+          primaryTopicIds.get(concept.id) === topic.id,
+      )
+      .sort((a, b) =>
+        a.name.localeCompare(b.name, "uk-UA"),
+      );
+
+    const groupHeight = Math.max(
+      TOPIC_HEIGHT,
+      groupConcepts.length * conceptStep,
+    );
+
+    positions.set(`topic-${topic.id}`, {
+      x: topicX,
+      y: currentY + (groupHeight - TOPIC_HEIGHT) / 2,
+    });
+
+    groupConcepts.forEach((concept, index) => {
+      positions.set(String(concept.id), {
+        x: conceptX,
+        y:
+          currentY +
+          index * conceptStep +
+          (conceptStep - CONCEPT_HEIGHT) / 2,
+      });
+    });
+
+    currentY += groupHeight + groupGap;
+  }
+
+  const unassignedConcepts = graph.concepts
+    .filter((concept) => !primaryTopicIds.has(concept.id))
+    .sort((a, b) =>
+      a.name.localeCompare(b.name, "uk-UA"),
+    );
+
+  unassignedConcepts.forEach((concept, index) => {
+    positions.set(String(concept.id), {
+      x: conceptX,
+      y: currentY + index * conceptStep,
+    });
+  });
+
+  return nodes.map((node) => ({
+    ...node,
+    position: positions.get(node.id) ?? node.position,
+  }));
+}
+
 export default function KnowledgeGraphCanvas({
   graph,
   topics,
@@ -211,7 +302,9 @@ export default function KnowledgeGraphCanvas({
     let flowEdges: Edge[] = [];
 
     if (mode === "topics") {
-      const activeTopics = topics?.topics ?? [];
+      const activeTopics = [...(topics?.topics ?? [])].sort(
+        (a, b) => a.order - b.order || a.id - b.id,
+        );
 
       const topicNodes: KnowledgeFlowNode[] =
         activeTopics.map((topic) => ({
@@ -223,12 +316,13 @@ export default function KnowledgeGraphCanvas({
             selected?.kind === "topic" &&
             selected.id === topic.id,
 
-          data: {
-            label: topic.name,
-            subtitle: `${topic.conceptIds.length} понять`,
-            kind: "topic",
-            dimmed: false,
-          },
+       data: {
+  label: topic.name,
+  subtitle: `${topic.conceptIds.length} понять`,
+  kind: "topic",
+  order: topic.order,
+  dimmed: false,
+},
         }));
 
       const activeConceptIds = new Set(
@@ -302,10 +396,13 @@ export default function KnowledgeGraphCanvas({
         });
     }
 
-    return {
-      nodes: applyAutomaticLayout(flowNodes, flowEdges),
-      edges: flowEdges,
-    };
+  return {
+  nodes:
+    mode === "topics" && topics?.isCurrent
+      ? applyTopicsLayout(flowNodes, graph, topics)
+      : applyAutomaticLayout(flowNodes, flowEdges),
+  edges: flowEdges,
+};
   }, [
     graph,
     topics,
