@@ -18,7 +18,14 @@ import MaterialModal from "../components/MaterialModal";
 import ConfirmDeleteModal from "../components/ConfirmDeleteModal";
 
 import { deleteCourseMaterial } from "../api/coursesApi";
-import { BookOpen, ExternalLink, Pencil, Trash2 } from "lucide-react";
+import {
+  ArrowRight,
+  BookOpen,
+  ExternalLink,
+  Network,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import CourseParticipantsSection from "../components/CourseParticipantsSection";
 import CourseTestsSection from "../components/CourseTestsSection";
 
@@ -425,7 +432,32 @@ function CourseDetailsPage() {
           </div>
         </section>
       )}
+{(course.isOwner || course.isEnrolled) && (
+  <section className="content-section kg-course-entry">
+    <div className="kg-course-entry-info">
+      <div className="kg-course-entry-icon">
+        <Network size={25} />
+      </div>
 
+      <div>
+        <h2>Граф знань</h2>
+
+        <p>
+          Досліджуйте навчальні теми, ключові поняття
+          та зв'язки між ними в інтерактивній карті.
+        </p>
+      </div>
+    </div>
+
+    <Link
+      to={`/courses/${course.id}/knowledge-graph`}
+      className="secondary-button kg-course-entry-link"
+    >
+      Переглянути граф
+      <ArrowRight size={17} />
+    </Link>
+  </section>
+)}
       {(course.isOwner || course.isEnrolled) && (
         <CourseTestsSection courseId={course.id} isOwner={course.isOwner} />
       )}
