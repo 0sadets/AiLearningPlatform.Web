@@ -24,6 +24,7 @@ export interface CreateQuestionDto {
   sourceMaterialTitle?: string | null;
   sourceChunkIndex?: number | null;
   sourceExcerpt?: string | null;
+  knowledgeConceptIds?: number[];
 }
 
 export type UpdateQuestionDto = CreateQuestionDto;
@@ -49,6 +50,7 @@ export interface QuestionDto {
   sourceMaterialTitle: string | null;
   sourceChunkIndex: number | null;
   sourceExcerpt: string | null;
+  knowledgeConceptIds: number[];
 }
 
 export interface ReorderQuestionsDto {

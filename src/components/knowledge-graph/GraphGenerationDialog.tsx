@@ -70,14 +70,13 @@ export default function GraphGenerationDialog({
           <div>
             <h2 id="kg-generate-title">
               {hasExistingGraph
-                ? "Актуалізація графа"
+                ? "Оновлення графа знань"
                 : "Створення графа знань"}
             </h2>
 
             <p>
-              Оберіть навчальні матеріали, на основі
-              яких система сформує поняття
-              та семантичні зв'язки.
+              Система проаналізує вибрані матеріали та сформує граф знань. Для
+              великих матеріалів буде використано узагальнений режим.
             </p>
           </div>
 
@@ -96,43 +95,31 @@ export default function GraphGenerationDialog({
           <div className="kg-material-selection-header">
             <strong>Навчальні матеріали</strong>
 
-            <span>
-              Обрано {selectedIds.length} із 5
-            </span>
+            <span>Обрано {selectedIds.length} із 5</span>
           </div>
 
           {isLoading ? (
-            <p className="kg-details-muted">
-              Завантаження матеріалів...
-            </p>
+            <p className="kg-details-muted">Завантаження матеріалів...</p>
           ) : materials.length === 0 ? (
             <div className="kg-modal-empty">
               <FileText size={28} />
               <h3>Немає матеріалів</h3>
-              <p>
-                Спочатку додайте навчальні матеріали
-                до курсу.
-              </p>
+              <p>Спочатку додайте навчальні матеріали до курсу.</p>
             </div>
           ) : (
             <div className="kg-material-options">
               {materials.map((material) => {
-                const checked = selectedIds.includes(
-                  material.id,
-                );
+                const checked = selectedIds.includes(material.id);
 
                 const disabled =
-                  isGenerating ||
-                  (!checked && selectedIds.length >= 5);
+                  isGenerating || (!checked && selectedIds.length >= 5);
 
                 return (
                   <label
                     key={material.id}
                     className={[
                       "kg-material-option",
-                      checked
-                        ? "kg-material-option--selected"
-                        : "",
+                      checked ? "kg-material-option--selected" : "",
                       disabled && !isGenerating
                         ? "kg-material-option--disabled"
                         : "",
@@ -144,9 +131,7 @@ export default function GraphGenerationDialog({
                       type="checkbox"
                       checked={checked}
                       disabled={disabled}
-                      onChange={() =>
-                        onToggle(material.id)
-                      }
+                      onChange={() => onToggle(material.id)}
                     />
 
                     <span className="kg-material-option-icon">
@@ -156,9 +141,7 @@ export default function GraphGenerationDialog({
                     <span className="kg-material-option-text">
                       <strong>{material.title}</strong>
 
-                      <small>
-                        {getMaterialLabel(material.type)}
-                      </small>
+                      <small>{getMaterialLabel(material.type)}</small>
                     </span>
                   </label>
                 );
@@ -168,16 +151,14 @@ export default function GraphGenerationDialog({
 
           {hasExistingGraph && (
             <p className="kg-generation-note">
-              Нову генерацію буде виконано на основі
-              вибраних матеріалів. Збереження ручних
-              змін визначається правилами сервера.
+              Граф буде оновлено. Частина попередніх понять і зв'язків може
+              змінитися, а навчальні теми потребуватимуть повторної генерації.
             </p>
           )}
 
           <p className="kg-generation-note">
-            За один запуск можна обрати не більше
-            п'яти матеріалів. Максимальна кількість
-            оброблюваних фрагментів — 12.
+            Можна обрати від 1 до 5 навчальних матеріалів. Спосіб аналізу
+            система визначить автоматично залежно від їхнього обсягу.
           </p>
 
           <div className="modal-actions">
@@ -196,14 +177,15 @@ export default function GraphGenerationDialog({
               disabled={
                 isLoading ||
                 isGenerating ||
-                selectedIds.length === 0
+                selectedIds.length === 0 ||
+                selectedIds.length > 5
               }
               onClick={onGenerate}
             >
               {isGenerating
                 ? "Генерація..."
                 : hasExistingGraph
-                  ? "Актуалізувати"
+                  ? "Оновити граф"
                   : "Створити граф"}
             </button>
           </div>

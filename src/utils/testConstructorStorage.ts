@@ -1,5 +1,7 @@
 import type { QuestionDraft } from "./testDraft";
+import { normalizeKnowledgeConceptIds } from "./testDraft";
 import type { TestSettingsValues } from "./testForm";
+
 
 export interface StoredConstructorDraft {
   settings: TestSettingsValues;
@@ -44,12 +46,23 @@ export function readConstructorDraft(
       return null;
     }
 
-    return {
-      settings: draft.settings,
-      questions: draft.questions,
-      creationMethod: draft.creationMethod ?? "manual",
-      importedJobIds: draft.importedJobIds,
-    };
+   return {
+  settings: draft.settings,
+  questions: draft.questions.map((question) => ({
+    ...question,
+    questionId:
+      typeof question.questionId === "number" &&
+      Number.isSafeInteger(question.questionId) &&
+      question.questionId > 0
+        ? question.questionId
+        : null,
+    knowledgeConceptIds: normalizeKnowledgeConceptIds(
+      question.knowledgeConceptIds,
+    ),
+  })),
+  creationMethod: draft.creationMethod ?? "manual",
+  importedJobIds: draft.importedJobIds,
+};
   } catch {
     return null;
   }

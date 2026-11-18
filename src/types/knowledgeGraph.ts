@@ -84,6 +84,7 @@ export interface KnowledgeGraphGenerationResultDto {
   relationsCount: number;
   evidencesCount: number;
   processedChunksCount: number;
+  generationMode: "Compact" | "Detailed";
 }
 
 

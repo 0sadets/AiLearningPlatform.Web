@@ -1,5 +1,7 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+
 import {
   Archive,
   ArrowLeft,
@@ -7,10 +9,25 @@ import {
   LockKeyhole,
   Plus,
   Save,
+  Sparkles,
+  LoaderCircle,
   Send,
   Trash2,
   AlertCircle,
 } from "lucide-react";
+
+import axios from "axios";
+
+import {
+  suggestQuestionKnowledgeConcepts,
+  updateQuestionKnowledgeConcepts,
+} from "../api/questionKnowledgeConceptsApi";
+
+import { getKnowledgeGraph } from "../api/knowledgeGraphApi";
+
+import type { KnowledgeGraphConceptDto } from "../types/knowledgeGraph";
+
+import type { KnowledgeConceptsLoadStatus } from "../components/tests/QuestionKnowledgeConcepts";
 
 import { getCourseById } from "../api/coursesApi";
 import {
@@ -38,6 +55,8 @@ import {
   type QuestionDraftErrors,
 } from "../utils/testDraft";
 
+import { normalizeKnowledgeConceptIds } from "../utils/testDraft";
+
 import {
   getConstructorDraftKey,
   readConstructorDraft,
@@ -52,6 +71,7 @@ import {
   buildFullTestPayload,
   createQuestionDraft,
   mapQuestionToDraft,
+  synchronizeSavedQuestions,
   type QuestionDraft,
 } from "../utils/testDraft";
 
@@ -65,6 +85,7 @@ import {
 } from "../utils/testForm";
 
 import "../styles/test-editor.css";
+import type { AiConceptSuggestionDraft } from "../types/questionKnowledgeConcepts";
 function revalidateTouchedQuestionErrors(
   previous: QuestionDraftErrors,
   question: QuestionDraft,
@@ -139,6 +160,39 @@ function snapshot(
 ): string {
   return JSON.stringify(buildFullTestPayload(settings, questions));
 }
+function sameConceptIds(first: number[], second: number[]): boolean {
+  const a = [...normalizeKnowledgeConceptIds(first)].sort((x, y) => x - y);
+
+  const b = [...normalizeKnowledgeConceptIds(second)].sort((x, y) => x - y);
+
+  return a.length === b.length && a.every((id, index) => id === b[index]);
+}
+
+function getConceptMatchingError(error: unknown): string {
+  if (axios.isAxiosError(error)) {
+    const status = error.response?.status;
+
+    if (status === 429) {
+      return "Перевищено ліміт AI-запитів. Спробуйте пізніше.";
+    }
+
+    if (status === 403) {
+      return "У вас немає прав на виконання цієї дії.";
+    }
+
+    if (status === 400) {
+      return getTestApiError(error, "Не вдалося виконати аналіз питань.");
+    }
+
+    return "Не вдалося автоматично визначити поняття. Повторіть спробу пізніше або встановіть прив'язки вручну.";
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return "Не вдалося автоматично визначити поняття.";
+}
 
 function confirmationDetails(action: Action) {
   switch (action.kind) {
@@ -191,11 +245,21 @@ function TestConstructorPage({ mode }: Props) {
   const { courseId: courseIdParam, testId: testIdParam } = useParams();
 
   const navigate = useNavigate();
+
+  const location = useLocation();
+
   const { showToast } = useToast();
 
   const [test, setTest] = useState<TestDto | null>(null);
   const [courseId, setCourseId] = useState<number | null>(null);
   const [courseTitle, setCourseTitle] = useState("");
+
+  const [knowledgeConcepts, setKnowledgeConcepts] = useState<
+    KnowledgeGraphConceptDto[]
+  >([]);
+
+  const [knowledgeConceptsStatus, setKnowledgeConceptsStatus] =
+    useState<KnowledgeConceptsLoadStatus>("loading");
 
   const [settings, setSettings] = useState<TestSettingsValues>(
     getInitialTestSettings,
@@ -227,6 +291,16 @@ function TestConstructorPage({ mode }: Props) {
   const [loadError, setLoadError] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
+  const [isMatchingConcepts, setIsMatchingConcepts] = useState(false);
+
+  const [isSavingConcepts, setIsSavingConcepts] = useState(false);
+
+  const [aiConceptSuggestions, setAiConceptSuggestions] = useState<
+    Record<number, AiConceptSuggestionDraft>
+  >({});
+
+  const aiConceptOperationRef = useRef(false);
+
   const [pendingAction, setPendingAction] = useState<Action | null>(null);
   const draftStorageKey = courseId
     ? getConstructorDraftKey(courseId, mode === "edit" ? test?.id : undefined)
@@ -249,6 +323,7 @@ function TestConstructorPage({ mode }: Props) {
     setTest(null);
     setSavedSnapshot(null);
     setDraftReady(false);
+    setAiConceptSuggestions({});
     setSettingsErrors({});
     setQuestionErrors({});
     setValidationSubmitted(false);
@@ -307,12 +382,29 @@ function TestConstructorPage({ mode }: Props) {
               ? readConstructorDraft(key)
               : null;
 
+          const hasUnsavedLocalChanges =
+            restored !== null &&
+            snapshot(restored.settings, restored.questions) !==
+              snapshot(nextSettings, nextQuestions);
+
           setTest(loadedTest);
           setCourseId(course.id);
           setCourseTitle(course.title);
 
-          setSettings(restored?.settings ?? nextSettings);
-          setQuestions(restored?.questions ?? nextQuestions);
+          setSettings(
+            hasUnsavedLocalChanges && restored
+              ? restored.settings
+              : nextSettings,
+          );
+
+          setQuestions(
+            hasUnsavedLocalChanges && restored
+              ? restored.questions.map((question) => ({
+                  ...question,
+                  questionId: null,
+                }))
+              : nextQuestions,
+          );
 
           setCreationMethod(restored?.creationMethod ?? "manual");
           setImportedJobIds(restored?.importedJobIds ?? []);
@@ -340,6 +432,49 @@ function TestConstructorPage({ mode }: Props) {
       active = false;
     };
   }, [mode, courseIdParam, testIdParam]);
+
+  useEffect(() => {
+    if (!courseId) {
+      return;
+    }
+
+    let active = true;
+
+    setKnowledgeConceptsStatus("loading");
+    setKnowledgeConcepts([]);
+
+    const loadConcepts = async () => {
+      try {
+        const graph = await getKnowledgeGraph(courseId);
+
+        if (!active) {
+          return;
+        }
+
+        setKnowledgeConcepts(graph.concepts);
+        setKnowledgeConceptsStatus("ready");
+      } catch (error) {
+        if (!active) {
+          return;
+        }
+
+        setKnowledgeConcepts([]);
+
+        if (axios.isAxiosError(error) && error.response?.status === 404) {
+          setKnowledgeConceptsStatus("missing");
+        } else {
+          setKnowledgeConceptsStatus("error");
+        }
+      }
+    };
+
+    void loadConcepts();
+
+    return () => {
+      active = false;
+    };
+  }, [courseId]);
+
   useEffect(() => {
     if (!draftReady || !draftStorageKey || isLoading) return;
 
@@ -377,6 +512,39 @@ function TestConstructorPage({ mode }: Props) {
   const hasInvalidQuestions = questions.some((question) =>
     hasQuestionDraftErrors(getQuestionDraftErrors(question)),
   );
+
+  const suggestionEntries = Object.entries(aiConceptSuggestions);
+
+  const approvedSuggestionCount = suggestionEntries.filter(
+    ([, suggestion]) => suggestion.approved,
+  ).length;
+
+  const hasAiConceptSuggestions = suggestionEntries.length > 0;
+
+  const canUseAiConceptMatching =
+    mode === "edit" &&
+    test !== null &&
+    !locked &&
+    knowledgeConceptsStatus === "ready" &&
+    knowledgeConcepts.length > 0 &&
+    knowledgeConcepts.length <= 120 &&
+    questions.length > 0;
+
+  const showAiConceptOffer =
+    mode === "edit" &&
+    test !== null &&
+    !locked &&
+    knowledgeConceptsStatus === "ready" &&
+    knowledgeConcepts.length > 0 &&
+    !isDirty &&
+    location.state !== null &&
+    typeof location.state === "object" &&
+    (
+      location.state as {
+        offerKnowledgeConcepts?: boolean;
+      }
+    ).offerKnowledgeConcepts === true;
+
   useEffect(() => {
     if (!scrollToQuestionKey) return;
 
@@ -427,6 +595,19 @@ function TestConstructorPage({ mode }: Props) {
       current.map((item) => (item.key === key ? question : item)),
     );
 
+    if (question.questionId !== null) {
+      setAiConceptSuggestions((current) => {
+        if (!current[question.questionId!]) {
+          return current;
+        }
+
+        const next = { ...current };
+        delete next[question.questionId!];
+
+        return next;
+      });
+    }
+
     setQuestionErrors((current) => {
       const previous = current[key];
 
@@ -439,6 +620,43 @@ function TestConstructorPage({ mode }: Props) {
         [key]: validationSubmitted
           ? getQuestionDraftErrors(question)
           : revalidateTouchedQuestionErrors(previous ?? {}, question),
+      };
+    });
+  }
+
+  function updateAiConceptSelection(questionId: number, conceptIds: number[]) {
+    setAiConceptSuggestions((current) => {
+      const suggestion = current[questionId];
+
+      if (!suggestion) {
+        return current;
+      }
+
+      return {
+        ...current,
+        [questionId]: {
+          ...suggestion,
+          selectedConceptIds: normalizeKnowledgeConceptIds(conceptIds),
+          approved: false,
+        },
+      };
+    });
+  }
+
+  function updateAiConceptApproval(questionId: number, approved: boolean) {
+    setAiConceptSuggestions((current) => {
+      const suggestion = current[questionId];
+
+      if (!suggestion) {
+        return current;
+      }
+
+      return {
+        ...current,
+        [questionId]: {
+          ...suggestion,
+          approved,
+        },
       };
     });
   }
@@ -511,13 +729,14 @@ function TestConstructorPage({ mode }: Props) {
       return;
     }
 
+    setAiConceptSuggestions({});
+
     const newQuestions = result.questions.map(mapAiQuestionToDraft);
 
     const updatedQuestions = [...questions, ...newQuestions];
 
     const updatedJobIds = [...importedJobIds, jobId];
 
-    // Зберігаємо питання та факт імпорту разом, до оновлення UI.
     if (draftStorageKey) {
       saveConstructorDraft(draftStorageKey, {
         settings,
@@ -544,6 +763,382 @@ function TestConstructorPage({ mode }: Props) {
     if (newQuestions.length > 0) {
       setExpandedKey(newQuestions[0].key);
     }
+  }
+
+  async function handleSuggestKnowledgeConcepts() {
+    if (
+      !test ||
+      !canUseAiConceptMatching ||
+      isProcessing ||
+      aiConceptOperationRef.current
+    ) {
+      return;
+    }
+
+    if (isDirty) {
+      showToast(
+        "Спочатку збережіть зміни в тесті, а потім запустіть автоматичне визначення понять.",
+        "error",
+      );
+      return;
+    }
+
+    aiConceptOperationRef.current = true;
+    setIsMatchingConcepts(true);
+    setIsProcessing(true);
+
+    try {
+      const savedQuestions = [...(await getTestQuestions(test.id))].sort(
+        (a, b) => a.order - b.order,
+      );
+
+      if (
+        savedQuestions.length !== questions.length ||
+        snapshot(settings, savedQuestions.map(mapQuestionToDraft)) !==
+          snapshot(settings, questions)
+      ) {
+        throw new Error(
+          "Збережена версія тесту відрізняється від відкритої. Оновіть сторінку перед запуском LearnAI.",
+        );
+      }
+
+      const synchronized = synchronizeSavedQuestions(savedQuestions, questions);
+
+      const questionIds = synchronized.map((question) => question.questionId);
+
+      if (
+        questionIds.some(
+          (id) => id === null || !Number.isSafeInteger(id) || id <= 0,
+        ) ||
+        new Set(questionIds).size !== questionIds.length
+      ) {
+        throw new Error(
+          "Не вдалося отримати актуальні питання тесту. Оновіть сторінку.",
+        );
+      }
+
+      setQuestions(synchronized);
+
+      const result = await suggestQuestionKnowledgeConcepts(test.id);
+
+      const availableConceptIds = new Set(
+        knowledgeConcepts.map((concept) => concept.id),
+      );
+
+      const validQuestionIds = new Set(questionIds as number[]);
+
+      const seenQuestionIds = new Set<number>();
+
+      const hasInvalidSuggestions =
+        result.testId !== test.id ||
+        result.suggestions.length !== synchronized.length ||
+        result.suggestions.some((item) => {
+          if (
+            !validQuestionIds.has(item.questionId) ||
+            seenQuestionIds.has(item.questionId) ||
+            !Array.isArray(item.conceptIds) ||
+            item.conceptIds.length > 3 ||
+            item.conceptIds.some((id) => !availableConceptIds.has(id))
+          ) {
+            return true;
+          }
+
+          seenQuestionIds.add(item.questionId);
+          return false;
+        });
+
+      if (hasInvalidSuggestions) {
+        throw new Error(
+          "Не вдалося правильно зіставити пропозиції з питаннями. Оновіть граф знань і повторіть аналіз.",
+        );
+      }
+
+      const nextSuggestions: Record<number, AiConceptSuggestionDraft> = {};
+
+      for (const item of result.suggestions) {
+        const ids = normalizeKnowledgeConceptIds(item.conceptIds);
+
+        nextSuggestions[item.questionId] = {
+          recommendedConceptIds: ids,
+          selectedConceptIds: [...ids],
+          approved: false,
+        };
+      }
+
+      setAiConceptSuggestions(nextSuggestions);
+
+      const firstSuggestedQuestion = synchronized.find(
+        (question) =>
+          question.questionId !== null &&
+          (nextSuggestions[question.questionId]?.recommendedConceptIds.length ??
+            0) > 0,
+      );
+
+      if (firstSuggestedQuestion) {
+        setExpandedKey(firstSuggestedQuestion.key);
+        setScrollToQuestionKey(firstSuggestedQuestion.key);
+      }
+
+      const matchedCount = Object.values(nextSuggestions).filter(
+        (item) => item.recommendedConceptIds.length > 0,
+      ).length;
+
+      showToast(
+        matchedCount > 0
+          ? "Поняття визначено. Перевірте пропозиції перед збереженням."
+          : "LearnAI не знайшла достатньо точних відповідностей. Ви можете вибрати поняття вручну.",
+        "success",
+      );
+    } catch (error) {
+      if (!isUnauthorizedError(error)) {
+        showToast(getConceptMatchingError(error), "error");
+      }
+    } finally {
+      aiConceptOperationRef.current = false;
+      setIsMatchingConcepts(false);
+      setIsProcessing(false);
+    }
+  }
+
+  async function handleConfirmAiConcepts() {
+    if (
+      !test ||
+      !canUseAiConceptMatching ||
+      isProcessing ||
+      aiConceptOperationRef.current
+    ) {
+      return;
+    }
+
+    if (isDirty) {
+      showToast("Спочатку збережіть зміни в тесті.", "error");
+      return;
+    }
+
+    const approved = Object.entries(aiConceptSuggestions)
+      .filter(([, suggestion]) => suggestion.approved)
+      .map(([id, suggestion]) => ({
+        questionId: Number(id),
+        conceptIds: normalizeKnowledgeConceptIds(suggestion.selectedConceptIds),
+      }));
+
+    if (approved.length === 0) {
+      showToast(
+        "Оберіть питання, для яких потрібно підтвердити поняття.",
+        "error",
+      );
+      return;
+    }
+
+    const currentQuestionsById = new Map(
+      questions
+        .filter((question) => question.questionId !== null)
+        .map((question) => [question.questionId!, question]),
+    );
+
+    const availableConceptIds = new Set(
+      knowledgeConcepts.map((concept) => concept.id),
+    );
+
+    const hasInvalidSelection = approved.some(
+      (item) =>
+        !currentQuestionsById.has(item.questionId) ||
+        item.conceptIds.some((id) => !availableConceptIds.has(id)),
+    );
+
+    if (hasInvalidSelection) {
+      showToast(
+        "Деякі вибрані поняття більше недоступні. Перевірте пропозиції та повторіть спробу.",
+        "error",
+      );
+      return;
+    }
+
+    const changes = approved.filter((item) => {
+      const question = currentQuestionsById.get(item.questionId);
+
+      return (
+        question !== undefined &&
+        !sameConceptIds(question.knowledgeConceptIds, item.conceptIds)
+      );
+    });
+
+    if (changes.length === 0) {
+      setAiConceptSuggestions((current) =>
+        Object.fromEntries(
+          Object.entries(current).filter(
+            ([, suggestion]) => !suggestion.approved,
+          ),
+        ),
+      );
+
+      showToast("Підтверджені відповідності вже збережені.", "success");
+      return;
+    }
+
+    aiConceptOperationRef.current = true;
+    setIsSavingConcepts(true);
+    setIsProcessing(true);
+
+    try {
+      const results = await Promise.allSettled(
+        changes.map(async (item) => {
+          const result = await updateQuestionKnowledgeConcepts(
+            item.questionId,
+            item.conceptIds,
+          );
+
+          if (result.questionId !== item.questionId) {
+            throw new Error("Не вдалося перевірити збереження прив'язки.");
+          }
+
+          return result;
+        }),
+      );
+
+      const savedConcepts = new Map<number, number[]>();
+      const failedQuestionIds: number[] = [];
+
+      let hasValidationError = false;
+
+      results.forEach((result, index) => {
+        const questionId = changes[index].questionId;
+
+        if (result.status === "fulfilled") {
+          savedConcepts.set(
+            questionId,
+            normalizeKnowledgeConceptIds(result.value.knowledgeConceptIds),
+          );
+        } else {
+          failedQuestionIds.push(questionId);
+
+          if (
+            axios.isAxiosError(result.reason) &&
+            result.reason.response?.status === 400
+          ) {
+            hasValidationError = true;
+          }
+        }
+      });
+
+      const unchangedIds = new Set(
+        approved
+          .filter(
+            (item) =>
+              !changes.some((change) => change.questionId === item.questionId),
+          )
+          .map((item) => item.questionId),
+      );
+
+      const updatedQuestions = questions.map((question) => {
+        if (question.questionId === null) {
+          return question;
+        }
+
+        const saved = savedConcepts.get(question.questionId);
+
+        return saved
+          ? {
+              ...question,
+              knowledgeConceptIds: saved,
+            }
+          : question;
+      });
+
+      setQuestions(updatedQuestions);
+      setSavedSnapshot(snapshot(settings, updatedQuestions));
+
+      setAiConceptSuggestions((current) =>
+        Object.fromEntries(
+          Object.entries(current).filter(([id]) => {
+            const questionId = Number(id);
+
+            return (
+              !savedConcepts.has(questionId) && !unchangedIds.has(questionId)
+            );
+          }),
+        ),
+      );
+
+      let refreshed = false;
+
+      try {
+        const savedQuestions = [...(await getTestQuestions(test.id))].sort(
+          (a, b) => a.order - b.order,
+        );
+
+        const idsMatch =
+          savedQuestions.length === updatedQuestions.length &&
+          savedQuestions.every(
+            (item, index) => item.id === updatedQuestions[index].questionId,
+          );
+
+        if (!idsMatch) {
+          throw new Error("Question IDs changed");
+        }
+
+        const synchronized = synchronizeSavedQuestions(
+          savedQuestions,
+          updatedQuestions,
+        );
+
+        setQuestions(synchronized);
+        setSavedSnapshot(snapshot(settings, synchronized));
+
+        refreshed = true;
+      } catch {
+        refreshed = false;
+      }
+
+      if (hasValidationError && courseId) {
+        try {
+          const freshGraph = await getKnowledgeGraph(courseId);
+
+          setKnowledgeConcepts(freshGraph.concepts);
+          setKnowledgeConceptsStatus("ready");
+        } catch {
+          setKnowledgeConceptsStatus("error");
+        }
+      }
+
+      if (failedQuestionIds.length > 0) {
+        const numbers = failedQuestionIds
+          .map((id) =>
+            questions.findIndex((question) => question.questionId === id),
+          )
+          .filter((index) => index >= 0)
+          .map((index) => index + 1);
+
+        showToast(
+          `Не вдалося зберегти прив'язки для питань №${numbers.join(
+            ", ",
+          )}. Інші успішно збережені зміни залишилися. Перевірте ці питання та повторіть спробу.`,
+          "error",
+        );
+      } else if (!refreshed) {
+        showToast(
+          "Прив'язки збережено, але не вдалося оновити список питань. Оновіть сторінку перед наступними змінами.",
+          "error",
+        );
+      } else {
+        showToast("Вибрані прив'язки успішно збережено.", "success");
+      }
+    } catch (error) {
+      if (!isUnauthorizedError(error)) {
+        showToast(getConceptMatchingError(error), "error");
+      }
+    } finally {
+      aiConceptOperationRef.current = false;
+      setIsSavingConcepts(false);
+      setIsProcessing(false);
+    }
+  }
+
+  function dismissAiConceptOffer() {
+    navigate(location.pathname, {
+      replace: true,
+      state: null,
+    });
   }
 
   async function handleSave(event: FormEvent<HTMLFormElement>) {
@@ -608,7 +1203,30 @@ function TestConstructorPage({ mode }: Props) {
 
       return;
     }
+    if (
+      knowledgeConceptsStatus === "ready" ||
+      knowledgeConceptsStatus === "missing"
+    ) {
+      const availableIds = new Set(
+        knowledgeConcepts.map((concept) => concept.id),
+      );
 
+      const invalidQuestion = questions.find((question) =>
+        question.knowledgeConceptIds.some((id) => !availableIds.has(id)),
+      );
+
+      if (invalidQuestion) {
+        setExpandedKey(invalidQuestion.key);
+        setScrollToQuestionKey(invalidQuestion.key);
+
+        showToast(
+          "Деякі вибрані поняття більше недоступні. Перевірте прив'язки питань перед збереженням.",
+          "error",
+        );
+
+        return;
+      }
+    }
     setIsProcessing(true);
 
     try {
@@ -626,12 +1244,23 @@ function TestConstructorPage({ mode }: Props) {
         ) {
           const newDraftKey = getConstructorDraftKey(courseId, newId);
 
-          saveConstructorDraft(newDraftKey, {
-            settings,
-            questions,
-            creationMethod,
-            importedJobIds,
-          });
+          try {
+            const savedQuestions = await getTestQuestions(newId);
+
+            const synchronizedQuestions = synchronizeSavedQuestions(
+              savedQuestions,
+              questions,
+            );
+
+            saveConstructorDraft(newDraftKey, {
+              settings,
+              questions: synchronizedQuestions,
+              creationMethod,
+              importedJobIds,
+            });
+          } catch {
+            removeConstructorDraft(newDraftKey);
+          }
         }
 
         if (draftStorageKey) {
@@ -644,12 +1273,48 @@ function TestConstructorPage({ mode }: Props) {
           typeof newId === "number" && Number.isSafeInteger(newId) && newId > 0
             ? `/tests/${newId}/edit`
             : backPath,
-          { replace: true },
+          {
+            replace: true,
+            state:
+              typeof newId === "number" &&
+              Number.isSafeInteger(newId) &&
+              newId > 0
+                ? { offerKnowledgeConcepts: true }
+                : null,
+          },
         );
       } else if (test) {
         await updateTestDraft(test.id, payload);
+        setAiConceptSuggestions({});
 
-        setSavedSnapshot(snapshot(settings, questions));
+        let questionsRefreshed = false;
+
+        try {
+          const savedQuestions = await getTestQuestions(test.id);
+
+          if (savedQuestions.length !== questions.length) {
+            throw new Error("Questions count mismatch");
+          }
+
+          const synchronizedQuestions = synchronizeSavedQuestions(
+            savedQuestions,
+            questions,
+          );
+
+          setQuestions(synchronizedQuestions);
+          setSavedSnapshot(snapshot(settings, synchronizedQuestions));
+
+          questionsRefreshed = true;
+        } catch {
+          setQuestions((current) =>
+            current.map((question) => ({
+              ...question,
+              questionId: null,
+            })),
+          );
+
+          setSavedSnapshot(snapshot(settings, questions));
+        }
 
         setTest((current) =>
           current
@@ -670,7 +1335,12 @@ function TestConstructorPage({ mode }: Props) {
         setSettingsErrors({});
         setQuestionErrors({});
         setValidationSubmitted(false);
-        showToast("Чернетку та всі питання збережено.", "success");
+        showToast(
+          questionsRefreshed
+            ? "Чернетку та всі питання збережено."
+            : "Чернетку збережено, але не вдалося оновити список питань. Оновіть сторінку перед автоматичним визначенням понять.",
+          questionsRefreshed ? "success" : "error",
+        );
       }
     } catch (error) {
       if (!isUnauthorizedError(error)) {
@@ -727,6 +1397,8 @@ function TestConstructorPage({ mode }: Props) {
       if (pendingAction.kind === "publish") {
         await publishTest(test.id);
 
+        setAiConceptSuggestions({});
+
         setTest((current) =>
           current ? { ...current, isPublished: true } : current,
         );
@@ -734,6 +1406,8 @@ function TestConstructorPage({ mode }: Props) {
         showToast("Тест опубліковано.", "success");
       } else if (pendingAction.kind === "archive") {
         await archiveTest(test.id);
+
+        setAiConceptSuggestions({});
 
         setTest((current) =>
           current ? { ...current, isArchived: true } : current,
@@ -822,6 +1496,48 @@ function TestConstructorPage({ mode }: Props) {
         </div>
       )}
 
+      {showAiConceptOffer && (
+        <section className="test-ai-concepts-offer">
+          <span className="test-ai-concepts-offer-icon">
+            <Sparkles size={22} />
+          </span>
+
+          <div className="test-ai-concepts-offer-content">
+            <h3>Тест успішно збережено!</h3>
+
+            <p>
+              Бажаєте автоматично визначити, які навчальні поняття перевіряють
+              його питання? Це допоможе надалі аналізувати прогалини в знаннях
+              студентів.
+            </p>
+
+            <div className="test-ai-concepts-offer-actions">
+              <button
+                type="button"
+                className="test-btn test-btn--primary"
+                disabled={isProcessing}
+                onClick={() => {
+                  dismissAiConceptOffer();
+                  void handleSuggestKnowledgeConcepts();
+                }}
+              >
+                <Sparkles size={16} />
+                Визначити поняття
+              </button>
+
+              <button
+                type="button"
+                className="test-btn test-btn--secondary"
+                disabled={isProcessing}
+                onClick={dismissAiConceptOffer}
+              >
+                Пізніше
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+
       <form onSubmit={handleSave} className="test-constructor-form" noValidate>
         <section className="test-panel test-constructor-method">
           <div className="test-panel-heading">
@@ -892,6 +1608,140 @@ function TestConstructorPage({ mode }: Props) {
             )}
           </div>
 
+          {mode === "edit" && test && !locked && (
+            <div className="test-ai-concepts-toolbar">
+              <div className="test-ai-concepts-toolbar-heading">
+                <span className="test-ai-concepts-toolbar-icon">
+                  <Sparkles size={19} />
+                </span>
+
+                <div>
+                  <h3>Автоматичне визначення понять</h3>
+
+                  <p>
+                    LearnAI проаналізує питання тесту та запропонує відповідні
+                    поняття з графа знань. Остаточний вибір залишиться за вами.
+                  </p>
+                </div>
+              </div>
+
+              {knowledgeConceptsStatus === "missing" && (
+                <p className="test-ai-concepts-notice">
+                  Для автоматичного визначення понять спочатку створіть граф
+                  знань курсу.
+                </p>
+              )}
+
+              {knowledgeConceptsStatus === "error" && (
+                <p className="test-ai-concepts-notice">
+                  Не вдалося завантажити граф знань. Оновіть сторінку або
+                  виберіть поняття вручну.
+                </p>
+              )}
+
+              {knowledgeConceptsStatus === "ready" &&
+                knowledgeConcepts.length === 0 && (
+                  <p className="test-ai-concepts-notice">
+                    Граф знань поки не містить навчальних понять.
+                  </p>
+                )}
+
+              {knowledgeConcepts.length > 120 && (
+                <p className="test-ai-concepts-notice">
+                  Граф містить понад 120 понять. Автоматичне визначення поки
+                  недоступне, але ви можете вибрати поняття вручну.
+                </p>
+              )}
+
+              {isDirty && (
+                <p className="test-ai-concepts-notice">
+                  Є незбережені зміни. Спочатку збережіть чернетку тесту, а
+                  потім запустіть LearnAI.
+                </p>
+              )}
+
+              {isMatchingConcepts && (
+                <div
+                  className="test-ai-concepts-progress"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <LoaderCircle
+                    size={18}
+                    className="test-ai-concepts-spinner"
+                  />
+                  Аналізуємо питання тесту та визначаємо відповідні навчальні
+                  поняття…
+                </div>
+              )}
+
+              <div className="test-ai-concepts-toolbar-actions">
+                <button
+                  type="button"
+                  className="test-btn test-btn--secondary"
+                  disabled={isProcessing || !canUseAiConceptMatching}
+                  onClick={() => void handleSuggestKnowledgeConcepts()}
+                >
+                  {isMatchingConcepts ? (
+                    <LoaderCircle
+                      size={17}
+                      className="test-ai-concepts-spinner"
+                    />
+                  ) : (
+                    <Sparkles size={17} />
+                  )}
+
+                  {isMatchingConcepts
+                    ? "Аналізуємо..."
+                    : hasAiConceptSuggestions
+                      ? "Повторити аналіз"
+                      : "Автоматично визначити поняття"}
+                </button>
+
+                {hasAiConceptSuggestions && (
+                  <span className="test-ai-concepts-counter">
+                    Пропозиції для {suggestionEntries.length} питань
+                  </span>
+                )}
+              </div>
+
+              {hasAiConceptSuggestions && (
+                <div className="test-ai-concepts-confirm">
+                  <div>
+                    <strong>
+                      Підтверджено питань: {approvedSuggestionCount}
+                    </strong>
+
+                    <p>
+                      Відмітьте потрібні питання та перевірте поняття перед
+                      збереженням.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="test-btn test-btn--primary"
+                    disabled={
+                      isProcessing || isDirty || approvedSuggestionCount === 0
+                    }
+                    onClick={() => void handleConfirmAiConcepts()}
+                  >
+                    {isSavingConcepts
+                      ? "Зберігаємо прив'язки..."
+                      : "Підтвердити та зберегти прив'язки"}
+                  </button>
+                </div>
+              )}
+
+              {hasAiConceptSuggestions && (
+                <p className="test-ai-concepts-footnote">
+                  Повторний аналіз може змінити непідтверджені пропозиції, але
+                  не змінить уже збережені прив'язки без вашого підтвердження.
+                </p>
+              )}
+            </div>
+          )}
+
           {questions.length === 0 && (
             <div className="test-constructor-empty">
               Питань поки немає. Додайте перше питання нижче.
@@ -907,6 +1757,24 @@ function TestConstructorPage({ mode }: Props) {
                 total={questions.length}
                 expanded={expandedKey === question.key}
                 disabled={locked || isProcessing}
+                courseId={courseId ?? 0}
+                knowledgeConcepts={knowledgeConcepts}
+                knowledgeConceptsStatus={knowledgeConceptsStatus}
+                aiConceptSuggestion={
+                  question.questionId !== null
+                    ? aiConceptSuggestions[question.questionId]
+                    : undefined
+                }
+                onAiConceptSelectionChange={(ids) => {
+                  if (question.questionId !== null) {
+                    updateAiConceptSelection(question.questionId, ids);
+                  }
+                }}
+                onAiConceptApprovalChange={(approved) => {
+                  if (question.questionId !== null) {
+                    updateAiConceptApproval(question.questionId, approved);
+                  }
+                }}
                 onToggle={() =>
                   setExpandedKey((current) =>
                     current === question.key ? null : question.key,
