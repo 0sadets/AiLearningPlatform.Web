@@ -1,10 +1,4 @@
-import {
-  BookOpen,
-  Info,
-  Pencil,
-  Trash2,
-  X,
-} from "lucide-react";
+import { BookOpen, Eye, Focus, Info, Pencil, Trash2, X } from "lucide-react";
 
 import {
   KnowledgeRelationEvidenceRole,
@@ -13,6 +7,7 @@ import {
   type KnowledgeGraphConceptEvidenceDto,
   type KnowledgeGraphRelationEvidenceDto,
   type KnowledgeGraphSelection,
+  type KnowledgeGraphViewMode,
 } from "../../types/knowledgeGraph";
 
 import {
@@ -29,6 +24,9 @@ interface Props {
   topics: CourseKnowledgeTopicsDto | null;
   selected: KnowledgeGraphSelection;
   onSelect: (selection: KnowledgeGraphSelection) => void;
+  mode: KnowledgeGraphViewMode;
+  isConceptFocusEnabled: boolean;
+  onToggleConceptFocus: () => void;
 
   isOwner: boolean;
   isBusy: boolean;
@@ -43,11 +41,7 @@ interface Props {
   onDeleteTopic: (topicId: number) => void;
 }
 
-function EvidenceList({
-  evidences,
-}: {
-  evidences: Evidence[];
-}) {
+function EvidenceList({ evidences }: { evidences: Evidence[] }) {
   return (
     <div className="kg-details-section">
       <h4>
@@ -57,22 +51,15 @@ function EvidenceList({
 
       {evidences.length === 0 ? (
         <p className="kg-details-muted">
-          Для цього об'єкта немає збережених
-          підтверджувальних фрагментів.
+          Для цього об'єкта немає збережених підтверджувальних фрагментів.
         </p>
       ) : (
         <div className="kg-evidence-list">
           {evidences.map((evidence) => {
-            const role =
-              "role" in evidence
-                ? evidence.role
-                : undefined;
+            const role = "role" in evidence ? evidence.role : undefined;
 
             return (
-              <div
-                key={evidence.id}
-                className="kg-evidence-card"
-              >
+              <div key={evidence.id} className="kg-evidence-card">
                 <div className="kg-evidence-source">
                   <BookOpen size={14} />
                   <span>{evidence.materialTitle}</span>
@@ -88,13 +75,10 @@ function EvidenceList({
                   </span>
                 )}
 
-                <blockquote>
-                  {evidence.excerpt}
-                </blockquote>
+                <blockquote>{evidence.excerpt}</blockquote>
 
                 <span className="kg-evidence-chunk">
-                  Фрагмент матеріалу №
-                  {evidence.chunkIndex}
+                  Фрагмент матеріалу №{evidence.chunkIndex}
                 </span>
               </div>
             );
@@ -118,6 +102,9 @@ export default function KnowledgeGraphDetailsPanel({
   onDeleteRelation,
   onEditTopic,
   onDeleteTopic,
+  mode,
+isConceptFocusEnabled,
+onToggleConceptFocus,
 }: Props) {
   if (!selected) {
     return (
@@ -130,9 +117,8 @@ export default function KnowledgeGraphDetailsPanel({
           <h3>Деталі графа</h3>
 
           <p>
-            Виберіть поняття, навчальну тему або
-            семантичний зв'язок, щоб переглянути
-            його інформацію та джерела.
+            Виберіть поняття, навчальну тему або семантичний зв'язок, щоб
+            переглянути його інформацію та джерела.
           </p>
         </div>
       </aside>
@@ -141,66 +127,48 @@ export default function KnowledgeGraphDetailsPanel({
 
   const concept =
     selected.kind === "concept"
-      ? graph.concepts.find(
-          (item) => item.id === selected.id,
-        )
+      ? graph.concepts.find((item) => item.id === selected.id)
       : undefined;
 
   const relation =
     selected.kind === "relation"
-      ? graph.relations.find(
-          (item) => item.id === selected.id,
-        )
+      ? graph.relations.find((item) => item.id === selected.id)
       : undefined;
 
   const topic =
     selected.kind === "topic"
-      ? topics?.topics.find(
-          (item) => item.id === selected.id,
-        )
+      ? topics?.topics.find((item) => item.id === selected.id)
       : undefined;
 
   const sourceConcept = relation
-    ? graph.concepts.find(
-        (item) =>
-          item.id === relation.sourceConceptId,
-      )
+    ? graph.concepts.find((item) => item.id === relation.sourceConceptId)
     : undefined;
 
   const targetConcept = relation
-    ? graph.concepts.find(
-        (item) =>
-          item.id === relation.targetConceptId,
-      )
+    ? graph.concepts.find((item) => item.id === relation.targetConceptId)
     : undefined;
 
   const conceptTopics = concept
-    ? topics?.topics.filter((item) =>
-        item.conceptIds.includes(concept.id),
-      ) ?? []
+    ? (topics?.topics.filter((item) => item.conceptIds.includes(concept.id)) ??
+      [])
     : [];
 
   const title =
     concept?.name ??
     topic?.name ??
-    (relation
-      ? RELATION_INFO[relation.type].label
-      : "Деталі");
+    (relation ? RELATION_INFO[relation.type].label : "Деталі");
 
-  const category =
-    concept
-      ? "Поняття"
-      : relation
-        ? "Семантичний зв'язок"
-        : "Навчальна тема";
+  const category = concept
+    ? "Поняття"
+    : relation
+      ? "Семантичний зв'язок"
+      : "Навчальна тема";
 
   return (
     <aside className="kg-details-panel">
       <div className="kg-details-header">
         <div>
-          <span className="kg-details-category">
-            {category}
-          </span>
+          <span className="kg-details-category">{category}</span>
 
           <h3>{title}</h3>
         </div>
@@ -214,8 +182,38 @@ export default function KnowledgeGraphDetailsPanel({
         >
           <X size={18} />
         </button>
-          </div>
+      </div>
+{concept && mode === "relations" && (
+  <div className="kg-focus-actions">
+    <button
+      type="button"
+      className={`kg-focus-toggle ${
+        isConceptFocusEnabled
+          ? "kg-focus-toggle--active"
+          : ""
+      }`}
+      aria-pressed={isConceptFocusEnabled}
+      onClick={onToggleConceptFocus}
+    >
+      {isConceptFocusEnabled ? (
+        <Eye size={16} />
+      ) : (
+        <Focus size={16} />
+      )}
 
+      {isConceptFocusEnabled
+        ? "Показати весь граф"
+        : "Фокус на понятті"}
+    </button>
+
+    {isConceptFocusEnabled && (
+      <p className="kg-focus-hint">
+        Виділено безпосередньо пов'язані поняття
+        та зв'язки. Враховується поточний фільтр.
+      </p>
+    )}
+  </div>
+)}
       {/* Дії власника для вибраного поняття */}
 
       {concept && isOwner && (
@@ -241,61 +239,61 @@ export default function KnowledgeGraphDetailsPanel({
           </button>
         </div>
       )}
-{/* Дії власника для семантичного зв'язку */}
+      {/* Дії власника для семантичного зв'язку */}
 
-{relation && isOwner && (
-  <div className="kg-details-actions">
-    <button
-      type="button"
-      className="secondary-button kg-details-edit-button"
-      disabled={isBusy}
-      onClick={() => onEditRelation(relation.id)}
-    >
-      <Pencil size={15} />
-      Редагувати
-    </button>
+      {relation && isOwner && (
+        <div className="kg-details-actions">
+          <button
+            type="button"
+            className="secondary-button kg-details-edit-button"
+            disabled={isBusy}
+            onClick={() => onEditRelation(relation.id)}
+          >
+            <Pencil size={15} />
+            Редагувати
+          </button>
 
-    <button
-      type="button"
-      className="kg-details-delete-button"
-      disabled={isBusy}
-      onClick={() => onDeleteRelation(relation.id)}
-      aria-label="Видалити семантичний зв'язок"
-      title="Видалити зв'язок"
-    >
-      <Trash2 size={16} />
-    </button>
-  </div>
-)}
+          <button
+            type="button"
+            className="kg-details-delete-button"
+            disabled={isBusy}
+            onClick={() => onDeleteRelation(relation.id)}
+            aria-label="Видалити семантичний зв'язок"
+            title="Видалити зв'язок"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+      )}
 
-{topic && isOwner && topics?.isCurrent && (
-  <div className="kg-details-actions">
-    <button
-      type="button"
-      className="secondary-button kg-details-edit-button"
-      disabled={isBusy}
-      onClick={() => onEditTopic(topic.id)}
-    >
-      <Pencil size={15} />
-      Редагувати
-    </button>
+      {topic && isOwner && topics?.isCurrent && (
+        <div className="kg-details-actions">
+          <button
+            type="button"
+            className="secondary-button kg-details-edit-button"
+            disabled={isBusy}
+            onClick={() => onEditTopic(topic.id)}
+          >
+            <Pencil size={15} />
+            Редагувати
+          </button>
 
-    <button
-      type="button"
-      className="kg-details-delete-button"
-      disabled={isBusy || topics.topics.length <= 1}
-      onClick={() => onDeleteTopic(topic.id)}
-      aria-label="Видалити навчальну тему"
-      title={
-        topics.topics.length <= 1
-          ? "Не можна видалити останню навчальну тему"
-          : "Видалити навчальну тему"
-      }
-    >
-      <Trash2 size={16} />
-    </button>
-  </div>
-)}
+          <button
+            type="button"
+            className="kg-details-delete-button"
+            disabled={isBusy || topics.topics.length <= 1}
+            onClick={() => onDeleteTopic(topic.id)}
+            aria-label="Видалити навчальну тему"
+            title={
+              topics.topics.length <= 1
+                ? "Не можна видалити останню навчальну тему"
+                : "Видалити навчальну тему"
+            }
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+      )}
       <div className="kg-details-body">
         {concept && (
           <>
@@ -335,14 +333,10 @@ export default function KnowledgeGraphDetailsPanel({
             </div>
 
             {concept.isManuallyEdited && (
-              <span className="kg-manual-label">
-                Редаговано вручну
-              </span>
+              <span className="kg-manual-label">Редаговано вручну</span>
             )}
 
-            <EvidenceList
-              evidences={concept.evidences}
-            />
+            <EvidenceList evidences={concept.evidences} />
           </>
         )}
 
@@ -361,13 +355,10 @@ export default function KnowledgeGraphDetailsPanel({
                     })
                   }
                 >
-                  {sourceConcept?.name ??
-                    `Поняття ${relation.sourceConceptId}`}
+                  {sourceConcept?.name ?? `Поняття ${relation.sourceConceptId}`}
                 </button>
 
-                <span>
-                  {relation.type === 1 ? "↔" : "→"}
-                </span>
+                <span>{relation.type === 1 ? "↔" : "→"}</span>
 
                 <button
                   type="button"
@@ -378,31 +369,21 @@ export default function KnowledgeGraphDetailsPanel({
                     })
                   }
                 >
-                  {targetConcept?.name ??
-                    `Поняття ${relation.targetConceptId}`}
+                  {targetConcept?.name ?? `Поняття ${relation.targetConceptId}`}
                 </button>
               </div>
             </div>
 
             <div className="kg-details-section">
               <h4>Значення відношення</h4>
-              <p>
-                {
-                  RELATION_INFO[relation.type]
-                    .description
-                }
-              </p>
+              <p>{RELATION_INFO[relation.type].description}</p>
             </div>
 
             {relation.isManuallyEdited && (
-              <span className="kg-manual-label">
-                Редаговано вручну
-              </span>
+              <span className="kg-manual-label">Редаговано вручну</span>
             )}
 
-            <EvidenceList
-              evidences={relation.evidences}
-            />
+            <EvidenceList evidences={relation.evidences} />
           </>
         )}
 
@@ -425,24 +406,21 @@ export default function KnowledgeGraphDetailsPanel({
 
               <div className="kg-detail-row">
                 <span>Кількість понять</span>
-                <strong>
-                  {topic.conceptIds.length}
-                </strong>
+                <strong>{topic.conceptIds.length}</strong>
               </div>
             </div>
 
-          <div className="kg-details-section">
-  <h4>Ключові поняття</h4>
+            <div className="kg-details-section">
+              <h4>Ключові поняття</h4>
 
-  <p className="kg-details-muted kg-topic-concepts-description">
-    Поняття, які охоплює ця навчальна тема.
-  </p>
+              <p className="kg-details-muted kg-topic-concepts-description">
+                Поняття, які охоплює ця навчальна тема.
+              </p>
 
-  <div className="kg-topic-concepts">
+              <div className="kg-topic-concepts">
                 {topic.conceptIds.map((conceptId) => {
                   const item = graph.concepts.find(
-                    (candidate) =>
-                      candidate.id === conceptId,
+                    (candidate) => candidate.id === conceptId,
                   );
 
                   if (!item) {
@@ -468,9 +446,7 @@ export default function KnowledgeGraphDetailsPanel({
             </div>
 
             {topic.isManuallyEdited && (
-              <span className="kg-manual-label">
-                Редаговано вручну
-              </span>
+              <span className="kg-manual-label">Редаговано вручну</span>
             )}
           </>
         )}

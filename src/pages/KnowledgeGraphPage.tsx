@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import axios from "axios";
 
 import { Link, useParams } from "react-router-dom";
@@ -12,6 +18,9 @@ import {
   Network,
   Plus,
   RefreshCw,
+  ChevronDown,
+MoreHorizontal,
+Trash2,
   Search,
   Sparkles,
 } from "lucide-react";
@@ -34,6 +43,7 @@ import {
   createKnowledgeTopic,
   updateKnowledgeTopic,
   deleteKnowledgeTopic,
+  deleteKnowledgeGraph,
 } from "../api/knowledgeGraphApi";
 
 import { useToast } from "../context/ToastContext";
@@ -66,6 +76,7 @@ import KnowledgeRelationDialog from "../components/knowledge-graph/KnowledgeRela
 import KnowledgeTopicDialog from "../components/knowledge-graph/KnowledgeTopicDialog";
 
 import KnowledgeTopicDeleteDialog from "../components/knowledge-graph/KnowledgeTopicDeleteDialog";
+import KnowledgeGraphDeleteDialog from "../components/knowledge-graph/KnowledgeGraphDeleteDialog";
 
 import "../styles/knowledge-graph.css";
 
@@ -79,6 +90,7 @@ type BusyAction =
   | "relation-delete"
   | "topic-save"
   | "topic-delete"
+  | "graph-delete"
   | null;
 
 export default function KnowledgeGraphPage() {
@@ -101,12 +113,23 @@ export default function KnowledgeGraphPage() {
 
   const [selected, setSelected] = useState<KnowledgeGraphSelection>(null);
 
+  const [isConceptFocusEnabled, setConceptFocusEnabled] =
+  useState(false);
+
   const [search, setSearch] = useState("");
 
   const [relationFilter, setRelationFilter] =
     useState<KnowledgeRelationType | null>(null);
 
   const [busyAction, setBusyAction] = useState<BusyAction>(null);
+
+  const [isGraphActionsOpen, setGraphActionsOpen] =
+  useState(false);
+
+const [isDeleteGraphDialogOpen, setDeleteGraphDialogOpen] =
+  useState(false);
+
+const graphActionsRef = useRef<HTMLDivElement>(null);
 
   // ---------- РЕДАГУВАННЯ ПОНЯТЬ ----------
 
@@ -148,6 +171,13 @@ export default function KnowledgeGraphPage() {
 
   const isOwner = course?.isOwner === true;
   const isBusy = busyAction !== null;
+
+  const focusedConceptId =
+  mode === "relations" &&
+  isConceptFocusEnabled &&
+  selected?.kind === "concept"
+    ? selected.id
+    : null;
 
   const editingConcept =
     conceptEditor?.kind === "edit"
@@ -287,10 +317,10 @@ export default function KnowledgeGraphPage() {
     try {
       await deleteKnowledgeConcept(courseId, conceptId);
 
-      // Оновлюємо поняття, зв'язки та теми
       await refreshGraphData();
 
-      // Прибираємо виділення видаленого вузла
+      setConceptFocusEnabled(false);
+
       setSelected((current) =>
         current?.kind === "concept" && current.id === conceptId
           ? null
@@ -535,6 +565,35 @@ export default function KnowledgeGraphPage() {
     };
   }, [courseId, refreshGraphData]);
 
+  useEffect(() => {
+  if (!isGraphActionsOpen) {
+    return;
+  }
+
+  const handleOutsideClick = (event: PointerEvent) => {
+    if (
+      event.target instanceof Node &&
+      !graphActionsRef.current?.contains(event.target)
+    ) {
+      setGraphActionsOpen(false);
+    }
+  };
+
+  const handleEscape = (event: KeyboardEvent) => {
+    if (event.key === "Escape") {
+      setGraphActionsOpen(false);
+    }
+  };
+
+  document.addEventListener("pointerdown", handleOutsideClick);
+  document.addEventListener("keydown", handleEscape);
+
+  return () => {
+    document.removeEventListener("pointerdown", handleOutsideClick);
+    document.removeEventListener("keydown", handleEscape);
+  };
+}, [isGraphActionsOpen]);
+
   // ---------- ВИБІР МАТЕРІАЛІВ ----------
 
   const openGenerationDialog = async () => {
@@ -609,6 +668,8 @@ export default function KnowledgeGraphPage() {
       await refreshGraphData();
 
       setSelected(null);
+
+      setConceptFocusEnabled(false);
 
       showToast(
         `Граф сформовано. Опрацьовано ${result.processedChunksCount} фрагментів матеріалів.`,
@@ -827,6 +888,68 @@ export default function KnowledgeGraphPage() {
     }
   };
 
+  // ---------- ВИДАЛЕННЯ ГРАФА ----------
+
+const handleOpenDeleteGraph = () => {
+  if (!isOwner || isBusy || !graph) {
+    return;
+  }
+
+  setGraphActionsOpen(false);
+  setDeleteGraphDialogOpen(true);
+};
+
+const handleDeleteGraph = async () => {
+  if (!isOwner || isBusy || !graph) {
+    return;
+  }
+
+  setBusyAction("graph-delete");
+
+  try {
+    await deleteKnowledgeGraph(courseId);
+
+    setGraph(null);
+    setTopics(null);
+    setSourceStatus(null);
+
+    setSelected(null);
+    setMode("topics");
+    setConceptFocusEnabled(false);
+
+    setSearch("");
+    setRelationFilter(null);
+
+    setConceptEditor(null);
+    setDeletingConceptId(null);
+
+    setRelationEditor(null);
+    setDeletingRelationId(null);
+
+    setTopicEditor(null);
+    setDeletingTopicId(null);
+
+    setShowOverwriteConfirmation(false);
+    setGraphActionsOpen(false);
+    setDeleteGraphDialogOpen(false);
+
+    showToast(
+      "Граф знань успішно видалено.",
+      "success",
+    );
+  } catch (error) {
+    showToast(
+      getKnowledgeGraphError(
+        error,
+        "Не вдалося видалити граф знань.",
+      ),
+      "error",
+    );
+  } finally {
+    setBusyAction(null);
+  }
+};
+
   const searchMatches = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("uk-UA");
 
@@ -850,10 +973,32 @@ export default function KnowledgeGraphPage() {
     setSearch("");
   };
 
-  const changeMode = (nextMode: KnowledgeGraphViewMode) => {
-    setMode(nextMode);
-    setSelected(null);
-  };
+const handleGraphSelection = (
+  nextSelection: KnowledgeGraphSelection,
+) => {
+  setSelected(nextSelection);
+
+  if (nextSelection?.kind !== "concept") {
+    setConceptFocusEnabled(false);
+  }
+};
+
+const changeMode = (nextMode: KnowledgeGraphViewMode) => {
+  setMode(nextMode);
+  setSelected(null);
+  setConceptFocusEnabled(false);
+};
+
+const handleToggleConceptFocus = () => {
+  if (
+    mode !== "relations" ||
+    selected?.kind !== "concept"
+  ) {
+    return;
+  }
+
+  setConceptFocusEnabled((current) => !current);
+};
 
   if (isLoading) {
     return (
@@ -903,17 +1048,60 @@ export default function KnowledgeGraphPage() {
           </p>
         </div>
 
-        {isOwner && (
-          <button
-            type="button"
-            className="primary-button kg-button-with-icon"
-            onClick={() => void openGenerationDialog()}
-            disabled={isBusy}
+       {isOwner && (
+  <div className="kg-page-actions">
+    {graph && (
+      <div
+        className="kg-graph-actions"
+        ref={graphActionsRef}
+      >
+        <button
+          type="button"
+          className="secondary-button kg-more-button"
+          disabled={isBusy}
+          aria-expanded={isGraphActionsOpen}
+          aria-controls="kg-graph-actions-menu"
+          onClick={() =>
+            setGraphActionsOpen((current) => !current)
+          }
+        >
+          <MoreHorizontal size={18} />
+          Дії
+          <ChevronDown size={15} />
+        </button>
+
+        {isGraphActionsOpen && (
+          <div
+            id="kg-graph-actions-menu"
+            className="kg-graph-actions-menu"
           >
-            <Sparkles size={17} />
-            {graph ? "Актуалізувати граф" : "Створити граф"}
-          </button>
+            <button
+              type="button"
+              className="kg-graph-actions-danger"
+              onClick={handleOpenDeleteGraph}
+            >
+              <Trash2 size={17} />
+              Видалити граф знань
+            </button>
+          </div>
         )}
+      </div>
+    )}
+
+    <button
+      type="button"
+      className="primary-button kg-button-with-icon"
+      onClick={() => void openGenerationDialog()}
+      disabled={isBusy}
+    >
+      <Sparkles size={17} />
+
+      {graph
+        ? "Актуалізувати граф"
+        : "Створити граф"}
+    </button>
+  </div>
+)}
       </div>
       {/* Індикатор генерації графа */}
 
@@ -1289,21 +1477,25 @@ export default function KnowledgeGraphPage() {
               </div>
             ) : (
               <div className="kg-workspace-content">
-                <KnowledgeGraphCanvas
-                  graph={graph}
-                  topics={topics}
-                  mode={mode}
-                  selected={selected}
-                  search={search}
-                  relationFilter={relationFilter}
-                  onSelect={setSelected}
-                />
+             <KnowledgeGraphCanvas
+  graph={graph}
+  topics={topics}
+  mode={mode}
+  selected={selected}
+  search={search}
+  relationFilter={relationFilter}
+  focusedConceptId={focusedConceptId}
+  onSelect={handleGraphSelection}
+/>
 
                 <KnowledgeGraphDetailsPanel
                   graph={graph}
                   topics={topics}
                   selected={selected}
-                  onSelect={setSelected}
+                  onSelect={handleGraphSelection}
+                  mode={mode}
+isConceptFocusEnabled={focusedConceptId !== null}
+onToggleConceptFocus={handleToggleConceptFocus}
                   isOwner={isOwner}
                   isBusy={isBusy}
                   onEditConcept={handleOpenEditConcept}
@@ -1345,6 +1537,15 @@ export default function KnowledgeGraphPage() {
         onClose={() => setGenerationDialogOpen(false)}
         onGenerate={() => void handleGenerateGraph()}
       />
+
+      <KnowledgeGraphDeleteDialog
+  isOpen={isDeleteGraphDialogOpen}
+  graph={graph}
+  topics={topics}
+  isProcessing={busyAction === "graph-delete"}
+  onClose={() => setDeleteGraphDialogOpen(false)}
+  onConfirm={() => void handleDeleteGraph()}
+/>
       {/* Створення та редагування поняття */}
 
       {graph && (
