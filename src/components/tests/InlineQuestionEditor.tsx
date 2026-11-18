@@ -25,13 +25,15 @@ import {
 
 import TestDropdown, { type DropdownOption } from "./TestDropdown";
 
-import type {
-  KnowledgeGraphConceptDto,
-} from "../../types/knowledgeGraph";
+import type { KnowledgeGraphConceptDto } from "../../types/knowledgeGraph";
 
 import QuestionKnowledgeConcepts, {
   type KnowledgeConceptsLoadStatus,
 } from "./QuestionKnowledgeConcepts";
+
+import QuestionAiConceptSuggestion from "./QuestionAiConceptSuggestion";
+
+import type { AiConceptSuggestionDraft } from "../../types/questionKnowledgeConcepts";
 
 interface Props {
   question: QuestionDraft;
@@ -40,8 +42,13 @@ interface Props {
   expanded: boolean;
   disabled: boolean;
   courseId: number;
-knowledgeConcepts: KnowledgeGraphConceptDto[];
-knowledgeConceptsStatus: KnowledgeConceptsLoadStatus;
+  knowledgeConcepts: KnowledgeGraphConceptDto[];
+  knowledgeConceptsStatus: KnowledgeConceptsLoadStatus;
+
+  aiConceptSuggestion?: AiConceptSuggestionDraft;
+
+  onAiConceptSelectionChange: (ids: number[]) => void;
+  onAiConceptApprovalChange: (approved: boolean) => void;
   onToggle: () => void;
   onChange: (question: QuestionDraft) => void;
   onMove: (direction: -1 | 1) => void;
@@ -73,8 +80,11 @@ function InlineQuestionEditor({
   expanded,
   disabled,
   courseId,
-knowledgeConcepts,
-knowledgeConceptsStatus,
+  knowledgeConcepts,
+  knowledgeConceptsStatus,
+  aiConceptSuggestion,
+  onAiConceptSelectionChange,
+  onAiConceptApprovalChange,
   onToggle,
   onChange,
   onMove,
@@ -190,6 +200,15 @@ knowledgeConceptsStatus,
                 Є помилки в заповненні питання
               </small>
             )}
+            {aiConceptSuggestion && (
+  <span className="test-question-concept-ai-label">
+    <Sparkles size={13} />
+
+    {aiConceptSuggestion.approved
+      ? "Вибір підтверджено"
+      : "Є пропозиція LearnAI"}
+  </span>
+)}
           </span>
 
           {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
@@ -445,15 +464,24 @@ knowledgeConceptsStatus,
           )}
 
           <QuestionKnowledgeConcepts
-  courseId={courseId}
-  concepts={knowledgeConcepts}
-  status={knowledgeConceptsStatus}
-  selectedIds={question.knowledgeConceptIds}
-  disabled={disabled}
-  onChange={(knowledgeConceptIds) =>
-    patch({ knowledgeConceptIds })
-  }
-/>
+            courseId={courseId}
+            concepts={knowledgeConcepts}
+            status={knowledgeConceptsStatus}
+            selectedIds={question.knowledgeConceptIds}
+            disabled={disabled}
+            onChange={(knowledgeConceptIds) => patch({ knowledgeConceptIds })}
+          />
+          
+          {aiConceptSuggestion && (
+  <QuestionAiConceptSuggestion
+    concepts={knowledgeConcepts}
+    suggestion={aiConceptSuggestion}
+    currentConceptIds={question.knowledgeConceptIds}
+    disabled={disabled}
+    onChange={onAiConceptSelectionChange}
+    onApprovalChange={onAiConceptApprovalChange}
+  />
+)}
         </div>
       )}
     </section>
