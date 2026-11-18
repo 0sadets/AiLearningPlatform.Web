@@ -1,10 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 
 import { Link, useParams } from "react-router-dom";
@@ -19,8 +13,8 @@ import {
   Plus,
   RefreshCw,
   ChevronDown,
-MoreHorizontal,
-Trash2,
+  MoreHorizontal,
+  Trash2,
   Search,
   Sparkles,
 } from "lucide-react";
@@ -113,8 +107,7 @@ export default function KnowledgeGraphPage() {
 
   const [selected, setSelected] = useState<KnowledgeGraphSelection>(null);
 
-  const [isConceptFocusEnabled, setConceptFocusEnabled] =
-  useState(false);
+  const [isConceptFocusEnabled, setConceptFocusEnabled] = useState(false);
 
   const [search, setSearch] = useState("");
 
@@ -123,13 +116,11 @@ export default function KnowledgeGraphPage() {
 
   const [busyAction, setBusyAction] = useState<BusyAction>(null);
 
-  const [isGraphActionsOpen, setGraphActionsOpen] =
-  useState(false);
+  const [isGraphActionsOpen, setGraphActionsOpen] = useState(false);
 
-const [isDeleteGraphDialogOpen, setDeleteGraphDialogOpen] =
-  useState(false);
+  const [isDeleteGraphDialogOpen, setDeleteGraphDialogOpen] = useState(false);
 
-const graphActionsRef = useRef<HTMLDivElement>(null);
+  const graphActionsRef = useRef<HTMLDivElement>(null);
 
   // ---------- РЕДАГУВАННЯ ПОНЯТЬ ----------
 
@@ -159,6 +150,13 @@ const graphActionsRef = useRef<HTMLDivElement>(null);
   // Генерація графа
   const [isGenerationDialogOpen, setGenerationDialogOpen] = useState(false);
 
+  const [showRegenerationConfirmation, setShowRegenerationConfirmation] =
+    useState(false);
+
+  const [generationError, setGenerationError] = useState<string | null>(null);
+
+  const generationRequestRef = useRef(false);
+
   const [materials, setMaterials] = useState<CourseMaterial[]>([]);
 
   const [areMaterialsLoading, setMaterialsLoading] = useState(false);
@@ -173,11 +171,11 @@ const graphActionsRef = useRef<HTMLDivElement>(null);
   const isBusy = busyAction !== null;
 
   const focusedConceptId =
-  mode === "relations" &&
-  isConceptFocusEnabled &&
-  selected?.kind === "concept"
-    ? selected.id
-    : null;
+    mode === "relations" &&
+    isConceptFocusEnabled &&
+    selected?.kind === "concept"
+      ? selected.id
+      : null;
 
   const editingConcept =
     conceptEditor?.kind === "edit"
@@ -295,7 +293,11 @@ const graphActionsRef = useRef<HTMLDivElement>(null);
       });
 
       showToast(
-        isEditing ? "Поняття успішно оновлено." : "Поняття успішно додано.",
+        freshTopics?.isCurrent === false
+          ? "Поняття збережено. Після змін у графі необхідно повторно сформувати навчальні теми."
+          : isEditing
+            ? "Поняття успішно оновлено."
+            : "Поняття успішно додано.",
         "success",
       );
     } finally {
@@ -566,33 +568,33 @@ const graphActionsRef = useRef<HTMLDivElement>(null);
   }, [courseId, refreshGraphData]);
 
   useEffect(() => {
-  if (!isGraphActionsOpen) {
-    return;
-  }
-
-  const handleOutsideClick = (event: PointerEvent) => {
-    if (
-      event.target instanceof Node &&
-      !graphActionsRef.current?.contains(event.target)
-    ) {
-      setGraphActionsOpen(false);
+    if (!isGraphActionsOpen) {
+      return;
     }
-  };
 
-  const handleEscape = (event: KeyboardEvent) => {
-    if (event.key === "Escape") {
-      setGraphActionsOpen(false);
-    }
-  };
+    const handleOutsideClick = (event: PointerEvent) => {
+      if (
+        event.target instanceof Node &&
+        !graphActionsRef.current?.contains(event.target)
+      ) {
+        setGraphActionsOpen(false);
+      }
+    };
 
-  document.addEventListener("pointerdown", handleOutsideClick);
-  document.addEventListener("keydown", handleEscape);
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setGraphActionsOpen(false);
+      }
+    };
 
-  return () => {
-    document.removeEventListener("pointerdown", handleOutsideClick);
-    document.removeEventListener("keydown", handleEscape);
-  };
-}, [isGraphActionsOpen]);
+    document.addEventListener("pointerdown", handleOutsideClick);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("pointerdown", handleOutsideClick);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [isGraphActionsOpen]);
 
   // ---------- ВИБІР МАТЕРІАЛІВ ----------
 
@@ -646,18 +648,45 @@ const graphActionsRef = useRef<HTMLDivElement>(null);
     });
   };
 
-  const handleGenerateGraph = async () => {
+  const handleRequestGraphGeneration = () => {
     if (
       !isOwner ||
       isBusy ||
-      selectedMaterialIds.length === 0 ||
+      areMaterialsLoading ||
+      generationRequestRef.current ||
+      selectedMaterialIds.length < 1 ||
       selectedMaterialIds.length > 5
     ) {
       return;
     }
 
-    setGenerationDialogOpen(false);
+    if (graph) {
+      setGenerationDialogOpen(false);
+      setShowRegenerationConfirmation(true);
+      return;
+    }
 
+    void handleGenerateGraph();
+  };
+
+  const handleGenerateGraph = async () => {
+    if (
+      !isOwner ||
+      isBusy ||
+      generationRequestRef.current ||
+      selectedMaterialIds.length < 1 ||
+      selectedMaterialIds.length > 5
+    ) {
+      return;
+    }
+
+    generationRequestRef.current = true;
+
+    const wasUpdating = graph !== null;
+
+    setGenerationDialogOpen(false);
+    setShowRegenerationConfirmation(false);
+    setGenerationError(null);
     setBusyAction("graph");
 
     try {
@@ -665,28 +694,58 @@ const graphActionsRef = useRef<HTMLDivElement>(null);
         materialIds: selectedMaterialIds,
       });
 
-      await refreshGraphData();
-
       setSelected(null);
-
       setConceptFocusEnabled(false);
 
-      showToast(
-        `Граф сформовано. Опрацьовано ${result.processedChunksCount} фрагментів матеріалів.`,
-        "success",
-      );
+      try {
+        await refreshGraphData();
+      } catch {
+        showToast(
+          "Граф збережено, але не вдалося відобразити оновлені дані. Оновіть сторінку.",
+          "error",
+        );
+        return;
+      }
+
+      if (result.generationMode === "Compact") {
+        showToast(
+          wasUpdating
+            ? "Граф оновлено в узагальненому режимі. Система виділила ключові поняття та зв'язки."
+            : "Граф створено в узагальненому режимі. Система виділила ключові поняття та зв'язки.",
+          "success",
+        );
+      } else {
+        showToast(
+          wasUpdating
+            ? "Граф знань успішно оновлено."
+            : "Граф знань успішно створено. Система визначила навчальні поняття та зв'язки між ними.",
+          "success",
+        );
+      }
     } catch (error) {
-      showToast(
-        getKnowledgeGraphError(error, "Не вдалося згенерувати граф знань."),
-        "error",
+      const message = getKnowledgeGraphError(
+        error,
+        "Не вдалося створити граф знань. Спробуйте ще раз.",
       );
+
+      setGenerationError(message);
+      showToast(message, "error");
     } finally {
+      generationRequestRef.current = false;
       setBusyAction(null);
     }
   };
 
   const handleGenerateTopics = async (overwriteManualChanges = false) => {
     if (!isOwner || isBusy || !graph) {
+      return;
+    }
+
+    if (graph.concepts.length > 120) {
+      showToast(
+        "Для автоматичного формування навчальних тем граф може містити не більше 120 понять.",
+        "error",
+      );
       return;
     }
 
@@ -735,10 +794,13 @@ const graphActionsRef = useRef<HTMLDivElement>(null);
       await refreshGraphData();
 
       if (result.relationsAdded === 0) {
-        showToast("Нових підтверджених зв'язків не знайдено.", "success");
+        showToast(
+          "Аналіз завершено. Додаткових зв'язків між поняттями не знайдено.",
+          "success",
+        );
       } else {
         showToast(
-          `Додано ${result.relationsAdded} зв'язків. Ізольованих понять: ${result.isolatedConceptsBefore} → ${result.isolatedConceptsAfter}.`,
+          "Аналіз завершено. Нові зв'язки між навчальними поняттями додано до графа.",
           "success",
         );
       }
@@ -762,6 +824,14 @@ const graphActionsRef = useRef<HTMLDivElement>(null);
       !topics?.isCurrent ||
       graph.concepts.length === 0
     ) {
+      return;
+    }
+
+    if (topics && topics.topics.length >= 12) {
+      showToast(
+        "У графі вже є 12 навчальних тем. Щоб створити нову, спочатку змініть або видаліть одну з наявних.",
+        "error",
+      );
       return;
     }
 
@@ -890,65 +960,62 @@ const graphActionsRef = useRef<HTMLDivElement>(null);
 
   // ---------- ВИДАЛЕННЯ ГРАФА ----------
 
-const handleOpenDeleteGraph = () => {
-  if (!isOwner || isBusy || !graph) {
-    return;
-  }
+  const handleOpenDeleteGraph = () => {
+    if (!isOwner || isBusy || !graph) {
+      return;
+    }
 
-  setGraphActionsOpen(false);
-  setDeleteGraphDialogOpen(true);
-};
-
-const handleDeleteGraph = async () => {
-  if (!isOwner || isBusy || !graph) {
-    return;
-  }
-
-  setBusyAction("graph-delete");
-
-  try {
-    await deleteKnowledgeGraph(courseId);
-
-    setGraph(null);
-    setTopics(null);
-    setSourceStatus(null);
-
-    setSelected(null);
-    setMode("topics");
-    setConceptFocusEnabled(false);
-
-    setSearch("");
-    setRelationFilter(null);
-
-    setConceptEditor(null);
-    setDeletingConceptId(null);
-
-    setRelationEditor(null);
-    setDeletingRelationId(null);
-
-    setTopicEditor(null);
-    setDeletingTopicId(null);
-
-    setShowOverwriteConfirmation(false);
     setGraphActionsOpen(false);
-    setDeleteGraphDialogOpen(false);
+    setDeleteGraphDialogOpen(true);
+  };
 
-    showToast(
-      "Граф знань успішно видалено.",
-      "success",
-    );
-  } catch (error) {
-    showToast(
-      getKnowledgeGraphError(
-        error,
-        "Не вдалося видалити граф знань.",
-      ),
-      "error",
-    );
-  } finally {
-    setBusyAction(null);
-  }
-};
+  const handleDeleteGraph = async () => {
+    if (!isOwner || isBusy || !graph) {
+      return;
+    }
+
+    setBusyAction("graph-delete");
+
+    try {
+      await deleteKnowledgeGraph(courseId);
+
+      setGraph(null);
+      setTopics(null);
+      setSourceStatus(null);
+
+      setGenerationError(null);
+      setShowRegenerationConfirmation(false);
+
+      setSelected(null);
+      setMode("topics");
+      setConceptFocusEnabled(false);
+
+      setSearch("");
+      setRelationFilter(null);
+
+      setConceptEditor(null);
+      setDeletingConceptId(null);
+
+      setRelationEditor(null);
+      setDeletingRelationId(null);
+
+      setTopicEditor(null);
+      setDeletingTopicId(null);
+
+      setShowOverwriteConfirmation(false);
+      setGraphActionsOpen(false);
+      setDeleteGraphDialogOpen(false);
+
+      showToast("Граф знань успішно видалено.", "success");
+    } catch (error) {
+      showToast(
+        getKnowledgeGraphError(error, "Не вдалося видалити граф знань."),
+        "error",
+      );
+    } finally {
+      setBusyAction(null);
+    }
+  };
 
   const searchMatches = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("uk-UA");
@@ -973,32 +1040,27 @@ const handleDeleteGraph = async () => {
     setSearch("");
   };
 
-const handleGraphSelection = (
-  nextSelection: KnowledgeGraphSelection,
-) => {
-  setSelected(nextSelection);
+  const handleGraphSelection = (nextSelection: KnowledgeGraphSelection) => {
+    setSelected(nextSelection);
 
-  if (nextSelection?.kind !== "concept") {
+    if (nextSelection?.kind !== "concept") {
+      setConceptFocusEnabled(false);
+    }
+  };
+
+  const changeMode = (nextMode: KnowledgeGraphViewMode) => {
+    setMode(nextMode);
+    setSelected(null);
     setConceptFocusEnabled(false);
-  }
-};
+  };
 
-const changeMode = (nextMode: KnowledgeGraphViewMode) => {
-  setMode(nextMode);
-  setSelected(null);
-  setConceptFocusEnabled(false);
-};
+  const handleToggleConceptFocus = () => {
+    if (mode !== "relations" || selected?.kind !== "concept") {
+      return;
+    }
 
-const handleToggleConceptFocus = () => {
-  if (
-    mode !== "relations" ||
-    selected?.kind !== "concept"
-  ) {
-    return;
-  }
-
-  setConceptFocusEnabled((current) => !current);
-};
+    setConceptFocusEnabled((current) => !current);
+  };
 
   if (isLoading) {
     return (
@@ -1048,60 +1110,53 @@ const handleToggleConceptFocus = () => {
           </p>
         </div>
 
-       {isOwner && (
-  <div className="kg-page-actions">
-    {graph && (
-      <div
-        className="kg-graph-actions"
-        ref={graphActionsRef}
-      >
-        <button
-          type="button"
-          className="secondary-button kg-more-button"
-          disabled={isBusy}
-          aria-expanded={isGraphActionsOpen}
-          aria-controls="kg-graph-actions-menu"
-          onClick={() =>
-            setGraphActionsOpen((current) => !current)
-          }
-        >
-          <MoreHorizontal size={18} />
-          Дії
-          <ChevronDown size={15} />
-        </button>
+        {isOwner && (
+          <div className="kg-page-actions">
+            {graph && (
+              <div className="kg-graph-actions" ref={graphActionsRef}>
+                <button
+                  type="button"
+                  className="secondary-button kg-more-button"
+                  disabled={isBusy}
+                  aria-expanded={isGraphActionsOpen}
+                  aria-controls="kg-graph-actions-menu"
+                  onClick={() => setGraphActionsOpen((current) => !current)}
+                >
+                  <MoreHorizontal size={18} />
+                  Дії
+                  <ChevronDown size={15} />
+                </button>
 
-        {isGraphActionsOpen && (
-          <div
-            id="kg-graph-actions-menu"
-            className="kg-graph-actions-menu"
-          >
+                {isGraphActionsOpen && (
+                  <div
+                    id="kg-graph-actions-menu"
+                    className="kg-graph-actions-menu"
+                  >
+                    <button
+                      type="button"
+                      className="kg-graph-actions-danger"
+                      onClick={handleOpenDeleteGraph}
+                    >
+                      <Trash2 size={17} />
+                      Видалити граф знань
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             <button
               type="button"
-              className="kg-graph-actions-danger"
-              onClick={handleOpenDeleteGraph}
+              className="primary-button kg-button-with-icon"
+              onClick={() => void openGenerationDialog()}
+              disabled={isBusy}
             >
-              <Trash2 size={17} />
-              Видалити граф знань
+              <Sparkles size={17} />
+
+              {graph ? "Оновити граф" : "Створити граф"}
             </button>
           </div>
         )}
-      </div>
-    )}
-
-    <button
-      type="button"
-      className="primary-button kg-button-with-icon"
-      onClick={() => void openGenerationDialog()}
-      disabled={isBusy}
-    >
-      <Sparkles size={17} />
-
-      {graph
-        ? "Актуалізувати граф"
-        : "Створити граф"}
-    </button>
-  </div>
-)}
       </div>
       {/* Індикатор генерації графа */}
 
@@ -1120,13 +1175,10 @@ const handleToggleConceptFocus = () => {
 
           <div className="kg-generation-banner-text">
             <strong>
-              {graph ? "Актуалізуємо граф знань..." : "Генеруємо граф знань..."}
+              {graph ? "Оновлюємо граф знань..." : "Створюємо граф знань..."}
             </strong>
 
-            <p>
-              Аналізуємо навчальні матеріали, визначаємо ключові поняття та
-              зв'язки між ними. Це може зайняти деякий час.
-            </p>
+            <p>Аналізуємо навчальні матеріали. Це може зайняти деякий час.</p>
 
             {graph && (
               <span>
@@ -1137,6 +1189,34 @@ const handleToggleConceptFocus = () => {
           </div>
         </div>
       )}
+
+      {generationError && busyAction !== "graph" && (
+        <div className="kg-generation-error" role="alert">
+          <AlertCircle size={20} />
+
+          <div className="kg-generation-error-content">
+            <strong>
+              {graph
+                ? "Не вдалося оновити граф знань"
+                : "Не вдалося створити граф знань"}
+            </strong>
+            <p>{generationError}</p>
+          </div>
+
+          {isOwner && (
+            <button
+              type="button"
+              className="secondary-button"
+              disabled={isBusy}
+              onClick={() => void openGenerationDialog()}
+            >
+              <RefreshCw size={16} />
+              Спробувати ще раз
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Граф ще не створений */}
 
       {!graph ? (
@@ -1190,9 +1270,9 @@ const handleToggleConceptFocus = () => {
               <div>
                 <strong>
                   {sourceStatus === null
-                    ? "Стан джерел невідомий"
+                    ? "Не вдалося перевірити матеріали"
                     : sourceStatus.isSourceCurrent
-                      ? "Джерела актуальні"
+                      ? "Матеріали без змін"
                       : "Матеріали змінилися"}
                 </strong>
 
@@ -1206,8 +1286,9 @@ const handleToggleConceptFocus = () => {
 
                 {sourceStatus && sourceStatus.missingMaterialIds.length > 0 && (
                   <p className="kg-status-additional">
-                    Видалені матеріали:{" "}
-                    {sourceStatus.missingMaterialIds.join(", ")}
+                    Деякі матеріали, використані для створення графа, більше
+                    недоступні. Рекомендуємо оновити граф, вибравши наявні
+                    матеріали курсу.
                   </p>
                 )}
               </div>
@@ -1234,7 +1315,7 @@ const handleToggleConceptFocus = () => {
                     ? "Стан тем невідомий"
                     : topics.isCurrent
                       ? "Навчальні теми актуальні"
-                      : "Теми потребують актуалізації"}
+                      : "Навчальні теми потребують оновлення"}
                 </strong>
 
                 <p>
@@ -1242,7 +1323,7 @@ const handleToggleConceptFocus = () => {
                     ? "Не вдалося перевірити тематичну структуру."
                     : topics.isCurrent
                       ? `${topics.topicsCount} тем · ${topics.coveredConceptsCount} охоплених понять`
-                      : "Згенеруйте або оновіть тематичну структуру графа."}
+                      : "Граф знань оновлено або змінено. Необхідно повторно сформувати навчальні теми."}
                 </p>
               </div>
             </div>
@@ -1267,8 +1348,8 @@ const handleToggleConceptFocus = () => {
             </div>
 
             <div>
-              <span>Ревізія графа</span>
-              <strong>#{graph.revision}</strong>
+              <span>Версія графа</span>
+              <strong>{graph.revision}</strong>
             </div>
           </div>
 
@@ -1318,12 +1399,15 @@ const handleToggleConceptFocus = () => {
                       disabled={
                         isBusy ||
                         !topics?.isCurrent ||
-                        graph.concepts.length === 0
+                        graph.concepts.length === 0 ||
+                        (topics?.topics.length ?? 0) >= 12
                       }
                       title={
                         !topics?.isCurrent
-                          ? "Спочатку актуалізуйте навчальні теми"
-                          : "Створити нову навчальну тему"
+                          ? "Спочатку оновіть навчальні теми"
+                          : (topics?.topics.length ?? 0) >= 12
+                            ? "Максимальна кількість навчальних тем — 12"
+                            : "Створити нову навчальну тему"
                       }
                     >
                       <Plus size={16} />
@@ -1370,7 +1454,7 @@ const handleToggleConceptFocus = () => {
                       disabled={isBusy || !topics?.isCurrent}
                       title={
                         !topics?.isCurrent
-                          ? "Спочатку актуалізуйте навчальні теми"
+                          ? "Спочатку оновіть навчальні теми"
                           : "Знайти додаткові підтверджені зв'язки"
                       }
                     >
@@ -1384,6 +1468,16 @@ const handleToggleConceptFocus = () => {
                 </div>
               )}
             </div>
+            {mode === "topics" && graph.concepts.length > 120 && (
+              <div className="kg-limits-notice">
+                <AlertCircle size={18} />
+                <p>
+                  Граф містить {graph.concepts.length} понять. Для автоматичного
+                  формування навчальних тем потрібно не більше 120. Ви можете
+                  скоригувати граф перед генерацією.
+                </p>
+              </div>
+            )}
 
             {/* Пошук і фільтри */}
 
@@ -1456,19 +1550,28 @@ const handleToggleConceptFocus = () => {
               <div className="kg-topics-unavailable">
                 <Layers3 size={32} />
 
-                <h3>Тематична структура потребує оновлення</h3>
+                <h3>Навчальні теми потребують оновлення</h3>
 
                 <p>
-                  Поняття графа доступні в режимі семантичних зв'язків. Щоб
-                  переглянути їх за темами, необхідно актуалізувати тематичну
-                  структуру.
+                  Граф знань змінився, тому навчальні теми потрібно сформувати
+                  повторно. Поняття та зв'язки між ними залишаються доступними в
+                  сусідньому режимі перегляду.
                 </p>
 
                 {isOwner && (
                   <button
                     type="button"
                     className="primary-button"
-                    disabled={isBusy || graph.concepts.length === 0}
+                    disabled={
+                      isBusy ||
+                      graph.concepts.length === 0 ||
+                      graph.concepts.length > 120
+                    }
+                    title={
+                      graph.concepts.length > 120
+                        ? "Автоматичне формування доступне для графів, які містять не більше 120 понять"
+                        : undefined
+                    }
                     onClick={() => void handleGenerateTopics()}
                   >
                     Згенерувати теми
@@ -1477,16 +1580,16 @@ const handleToggleConceptFocus = () => {
               </div>
             ) : (
               <div className="kg-workspace-content">
-             <KnowledgeGraphCanvas
-  graph={graph}
-  topics={topics}
-  mode={mode}
-  selected={selected}
-  search={search}
-  relationFilter={relationFilter}
-  focusedConceptId={focusedConceptId}
-  onSelect={handleGraphSelection}
-/>
+                <KnowledgeGraphCanvas
+                  graph={graph}
+                  topics={topics}
+                  mode={mode}
+                  selected={selected}
+                  search={search}
+                  relationFilter={relationFilter}
+                  focusedConceptId={focusedConceptId}
+                  onSelect={handleGraphSelection}
+                />
 
                 <KnowledgeGraphDetailsPanel
                   graph={graph}
@@ -1535,17 +1638,30 @@ const handleToggleConceptFocus = () => {
         hasExistingGraph={graph !== null}
         onToggle={toggleMaterial}
         onClose={() => setGenerationDialogOpen(false)}
-        onGenerate={() => void handleGenerateGraph()}
+        onGenerate={handleRequestGraphGeneration}
+      />
+
+      <KnowledgeGraphConfirmDialog
+        isOpen={showRegenerationConfirmation}
+        title="Оновити граф знань?"
+        description="Після повторної генерації набір понять і семантичних зв'язків може змінитися. Раніше створені навчальні теми можуть потребувати оновлення, а прив'язки тестових питань — перевірки."
+        confirmLabel="Оновити граф"
+        isProcessing={busyAction === "graph"}
+        onCancel={() => {
+          setShowRegenerationConfirmation(false);
+          setGenerationDialogOpen(true);
+        }}
+        onConfirm={() => void handleGenerateGraph()}
       />
 
       <KnowledgeGraphDeleteDialog
-  isOpen={isDeleteGraphDialogOpen}
-  graph={graph}
-  topics={topics}
-  isProcessing={busyAction === "graph-delete"}
-  onClose={() => setDeleteGraphDialogOpen(false)}
-  onConfirm={() => void handleDeleteGraph()}
-/>
+        isOpen={isDeleteGraphDialogOpen}
+        graph={graph}
+        topics={topics}
+        isProcessing={busyAction === "graph-delete"}
+        onClose={() => setDeleteGraphDialogOpen(false)}
+        onConfirm={() => void handleDeleteGraph()}
+      />
       {/* Створення та редагування поняття */}
 
       {graph && (
@@ -1575,29 +1691,29 @@ const handleToggleConceptFocus = () => {
         onCancel={() => setDeletingConceptId(null)}
         onConfirm={() => void handleDeleteConcept()}
       />
-{graph && topics && (
-  <KnowledgeTopicDialog
-    isOpen={topicEditor !== null}
-    graph={graph}
-    topics={topics}
-    topic={editingTopic}
-    isBusy={isBusy}
-    onClose={() => setTopicEditor(null)}
-    onSave={handleSaveTopic}
-  />
-)}
+      {graph && topics && (
+        <KnowledgeTopicDialog
+          isOpen={topicEditor !== null}
+          graph={graph}
+          topics={topics}
+          topic={editingTopic}
+          isBusy={isBusy}
+          onClose={() => setTopicEditor(null)}
+          onSave={handleSaveTopic}
+        />
+      )}
 
-{graph && topics && (
-  <KnowledgeTopicDeleteDialog
-    isOpen={deletingTopic !== null}
-    graph={graph}
-    topics={topics}
-    topic={deletingTopic}
-    isProcessing={busyAction === "topic-delete"}
-    onClose={() => setDeletingTopicId(null)}
-    onDelete={handleDeleteTopic}
-  />
-)}
+      {graph && topics && (
+        <KnowledgeTopicDeleteDialog
+          isOpen={deletingTopic !== null}
+          graph={graph}
+          topics={topics}
+          topic={deletingTopic}
+          isProcessing={busyAction === "topic-delete"}
+          onClose={() => setDeletingTopicId(null)}
+          onDelete={handleDeleteTopic}
+        />
+      )}
       {/* Створення та редагування зв'язку */}
 
       {graph && (

@@ -25,12 +25,23 @@ import {
 
 import TestDropdown, { type DropdownOption } from "./TestDropdown";
 
+import type {
+  KnowledgeGraphConceptDto,
+} from "../../types/knowledgeGraph";
+
+import QuestionKnowledgeConcepts, {
+  type KnowledgeConceptsLoadStatus,
+} from "./QuestionKnowledgeConcepts";
+
 interface Props {
   question: QuestionDraft;
   index: number;
   total: number;
   expanded: boolean;
   disabled: boolean;
+  courseId: number;
+knowledgeConcepts: KnowledgeGraphConceptDto[];
+knowledgeConceptsStatus: KnowledgeConceptsLoadStatus;
   onToggle: () => void;
   onChange: (question: QuestionDraft) => void;
   onMove: (direction: -1 | 1) => void;
@@ -61,6 +72,9 @@ function InlineQuestionEditor({
   total,
   expanded,
   disabled,
+  courseId,
+knowledgeConcepts,
+knowledgeConceptsStatus,
   onToggle,
   onChange,
   onMove,
@@ -429,6 +443,17 @@ function InlineQuestionEditor({
               </small>
             </div>
           )}
+
+          <QuestionKnowledgeConcepts
+  courseId={courseId}
+  concepts={knowledgeConcepts}
+  status={knowledgeConceptsStatus}
+  selectedIds={question.knowledgeConceptIds}
+  disabled={disabled}
+  onChange={(knowledgeConceptIds) =>
+    patch({ knowledgeConceptIds })
+  }
+/>
         </div>
       )}
     </section>

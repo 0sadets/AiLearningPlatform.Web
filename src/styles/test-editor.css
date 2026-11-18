@@ -738,3 +738,270 @@
   font-size: 13px;
   font-weight: 500;
 }
+
+/* =========================
+   QUESTION KNOWLEDGE CONCEPTS
+========================= */
+
+.test-knowledge-field {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  padding: 19px;
+  background: #fafbff;
+  border: 1px solid #e0e7ff;
+  border-radius: 12px;
+}
+
+.test-knowledge-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.test-knowledge-icon {
+  display: grid;
+  place-items: center;
+  width: 37px;
+  height: 37px;
+  flex-shrink: 0;
+  background: #eef2ff;
+  border-radius: 9px;
+  color: #4f46e5;
+}
+
+.test-knowledge-heading > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.test-knowledge-heading h4 {
+  margin: 0 0 5px;
+  color: #1f2937;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.test-knowledge-heading p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.test-knowledge-count {
+  flex-shrink: 0;
+  padding: 6px 9px;
+  background: white;
+  border: 1px solid #e0e7ff;
+  border-radius: 7px;
+  color: #4f46e5;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.test-knowledge-selected {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.test-knowledge-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  padding: 7px 9px 7px 11px;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 8px;
+  color: #4338ca;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.test-knowledge-chip > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.test-knowledge-chip button {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 21px;
+  height: 21px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  color: #6366f1;
+  cursor: pointer;
+}
+
+.test-knowledge-chip button:hover {
+  background: #e0e7ff;
+  color: #312e81;
+}
+
+.test-knowledge-chip--missing {
+  background: #fff7ed;
+  border-color: #fed7aa;
+  color: #9a3412;
+}
+
+.test-knowledge-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 42px;
+  padding: 0 12px;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 9px;
+  color: #9ca3af;
+}
+
+.test-knowledge-search:focus-within {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.test-knowledge-search input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #1f2937;
+  font: inherit;
+  font-size: 13px;
+}
+
+.test-knowledge-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.test-knowledge-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 11px 13px;
+  border: 1px solid #e5e7eb;
+  border-radius: 9px;
+  background: white;
+  cursor: pointer;
+}
+
+.test-knowledge-option:hover {
+  border-color: #c7d2fe;
+}
+
+.test-knowledge-option--selected {
+  background: #f5f6ff;
+  border-color: #a5b4fc;
+}
+
+.test-knowledge-option > input {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  accent-color: #4f46e5;
+  cursor: pointer;
+}
+
+.test-knowledge-option-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.test-knowledge-option-info strong {
+  color: #1f2937;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.test-knowledge-option-info small {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  color: #9ca3af;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.test-knowledge-message,
+.test-knowledge-no-results {
+  margin: 0;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.test-knowledge-no-results {
+  padding: 18px;
+  text-align: center;
+}
+
+.test-knowledge-empty {
+  padding: 13px 15px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 9px;
+}
+
+.test-knowledge-empty p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.test-knowledge-empty a {
+  display: inline-block;
+  margin-top: 9px;
+  color: #4f46e5;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.test-knowledge-empty a:hover {
+  text-decoration: underline;
+}
+
+.test-knowledge-warning {
+  margin: 0;
+  color: #b45309;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+@media (max-width: 600px) {
+  .test-knowledge-field {
+    padding: 14px;
+  }
+
+  .test-knowledge-heading {
+    flex-wrap: wrap;
+  }
+
+  .test-knowledge-count {
+    margin-left: 49px;
+  }
+
+  .test-knowledge-option {
+    padding: 10px;
+  }
+}

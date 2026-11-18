@@ -12,6 +12,13 @@ import {
   AlertCircle,
 } from "lucide-react";
 
+import axios from "axios";
+import { getKnowledgeGraph } from "../api/knowledgeGraphApi";
+
+import type { KnowledgeGraphConceptDto } from "../types/knowledgeGraph";
+
+import type { KnowledgeConceptsLoadStatus } from "../components/tests/QuestionKnowledgeConcepts";
+
 import { getCourseById } from "../api/coursesApi";
 import {
   createFullTest,
@@ -52,6 +59,7 @@ import {
   buildFullTestPayload,
   createQuestionDraft,
   mapQuestionToDraft,
+  synchronizeSavedQuestions,
   type QuestionDraft,
 } from "../utils/testDraft";
 
@@ -197,6 +205,13 @@ function TestConstructorPage({ mode }: Props) {
   const [courseId, setCourseId] = useState<number | null>(null);
   const [courseTitle, setCourseTitle] = useState("");
 
+  const [knowledgeConcepts, setKnowledgeConcepts] = useState<
+    KnowledgeGraphConceptDto[]
+  >([]);
+
+  const [knowledgeConceptsStatus, setKnowledgeConceptsStatus] =
+    useState<KnowledgeConceptsLoadStatus>("loading");
+
   const [settings, setSettings] = useState<TestSettingsValues>(
     getInitialTestSettings,
   );
@@ -307,12 +322,29 @@ function TestConstructorPage({ mode }: Props) {
               ? readConstructorDraft(key)
               : null;
 
+          const hasUnsavedLocalChanges =
+            restored !== null &&
+            snapshot(restored.settings, restored.questions) !==
+              snapshot(nextSettings, nextQuestions);
+
           setTest(loadedTest);
           setCourseId(course.id);
           setCourseTitle(course.title);
 
-          setSettings(restored?.settings ?? nextSettings);
-          setQuestions(restored?.questions ?? nextQuestions);
+          setSettings(
+            hasUnsavedLocalChanges && restored
+              ? restored.settings
+              : nextSettings,
+          );
+
+          setQuestions(
+            hasUnsavedLocalChanges && restored
+              ? restored.questions.map((question) => ({
+                  ...question,
+                  questionId: null,
+                }))
+              : nextQuestions,
+          );
 
           setCreationMethod(restored?.creationMethod ?? "manual");
           setImportedJobIds(restored?.importedJobIds ?? []);
@@ -340,6 +372,49 @@ function TestConstructorPage({ mode }: Props) {
       active = false;
     };
   }, [mode, courseIdParam, testIdParam]);
+
+  useEffect(() => {
+    if (!courseId) {
+      return;
+    }
+
+    let active = true;
+
+    setKnowledgeConceptsStatus("loading");
+    setKnowledgeConcepts([]);
+
+    const loadConcepts = async () => {
+      try {
+        const graph = await getKnowledgeGraph(courseId);
+
+        if (!active) {
+          return;
+        }
+
+        setKnowledgeConcepts(graph.concepts);
+        setKnowledgeConceptsStatus("ready");
+      } catch (error) {
+        if (!active) {
+          return;
+        }
+
+        setKnowledgeConcepts([]);
+
+        if (axios.isAxiosError(error) && error.response?.status === 404) {
+          setKnowledgeConceptsStatus("missing");
+        } else {
+          setKnowledgeConceptsStatus("error");
+        }
+      }
+    };
+
+    void loadConcepts();
+
+    return () => {
+      active = false;
+    };
+  }, [courseId]);
+
   useEffect(() => {
     if (!draftReady || !draftStorageKey || isLoading) return;
 
@@ -608,7 +683,32 @@ function TestConstructorPage({ mode }: Props) {
 
       return;
     }
+if (
+  knowledgeConceptsStatus === "ready" ||
+  knowledgeConceptsStatus === "missing"
+) {
+  const availableIds = new Set(
+    knowledgeConcepts.map((concept) => concept.id),
+  );
 
+  const invalidQuestion = questions.find((question) =>
+    question.knowledgeConceptIds.some(
+      (id) => !availableIds.has(id),
+    ),
+  );
+
+  if (invalidQuestion) {
+    setExpandedKey(invalidQuestion.key);
+    setScrollToQuestionKey(invalidQuestion.key);
+
+    showToast(
+      "Деякі вибрані поняття більше недоступні. Перевірте прив'язки питань перед збереженням.",
+      "error",
+    );
+
+    return;
+  }
+}
     setIsProcessing(true);
 
     try {
@@ -619,20 +719,31 @@ function TestConstructorPage({ mode }: Props) {
 
         const newId = created?.id;
 
-        if (
-          typeof newId === "number" &&
-          Number.isSafeInteger(newId) &&
-          newId > 0
-        ) {
-          const newDraftKey = getConstructorDraftKey(courseId, newId);
+       if (
+  typeof newId === "number" &&
+  Number.isSafeInteger(newId) &&
+  newId > 0
+) {
+  const newDraftKey = getConstructorDraftKey(courseId, newId);
 
-          saveConstructorDraft(newDraftKey, {
-            settings,
-            questions,
-            creationMethod,
-            importedJobIds,
-          });
-        }
+  try {
+    const savedQuestions = await getTestQuestions(newId);
+
+    const synchronizedQuestions = synchronizeSavedQuestions(
+      savedQuestions,
+      questions,
+    );
+
+    saveConstructorDraft(newDraftKey, {
+      settings,
+      questions: synchronizedQuestions,
+      creationMethod,
+      importedJobIds,
+    });
+  } catch {
+    removeConstructorDraft(newDraftKey);
+  }
+}
 
         if (draftStorageKey) {
           removeConstructorDraft(draftStorageKey);
@@ -647,9 +758,38 @@ function TestConstructorPage({ mode }: Props) {
           { replace: true },
         );
       } else if (test) {
-        await updateTestDraft(test.id, payload);
+  await updateTestDraft(test.id, payload);
 
-        setSavedSnapshot(snapshot(settings, questions));
+  let questionsRefreshed = false;
+
+  try {
+    const savedQuestions = await getTestQuestions(test.id);
+
+    if (savedQuestions.length !== questions.length) {
+      throw new Error("Questions count mismatch");
+    }
+
+    const synchronizedQuestions = synchronizeSavedQuestions(
+      savedQuestions,
+      questions,
+    );
+
+    setQuestions(synchronizedQuestions);
+    setSavedSnapshot(
+      snapshot(settings, synchronizedQuestions),
+    );
+
+    questionsRefreshed = true;
+  } catch {
+    setQuestions((current) =>
+      current.map((question) => ({
+        ...question,
+        questionId: null,
+      })),
+    );
+
+    setSavedSnapshot(snapshot(settings, questions));
+  }
 
         setTest((current) =>
           current
@@ -670,7 +810,12 @@ function TestConstructorPage({ mode }: Props) {
         setSettingsErrors({});
         setQuestionErrors({});
         setValidationSubmitted(false);
-        showToast("Чернетку та всі питання збережено.", "success");
+       showToast(
+  questionsRefreshed
+    ? "Чернетку та всі питання збережено."
+    : "Чернетку збережено, але не вдалося оновити список питань. Оновіть сторінку перед автоматичним визначенням понять.",
+  questionsRefreshed ? "success" : "error",
+);
       }
     } catch (error) {
       if (!isUnauthorizedError(error)) {
@@ -907,6 +1052,9 @@ function TestConstructorPage({ mode }: Props) {
                 total={questions.length}
                 expanded={expandedKey === question.key}
                 disabled={locked || isProcessing}
+                courseId={courseId ?? 0}
+                knowledgeConcepts={knowledgeConcepts}
+                knowledgeConceptsStatus={knowledgeConceptsStatus}
                 onToggle={() =>
                   setExpandedKey((current) =>
                     current === question.key ? null : question.key,

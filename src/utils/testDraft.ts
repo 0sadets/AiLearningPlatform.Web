@@ -18,10 +18,12 @@ export interface OptionDraft {
 
 export interface QuestionDraft {
   key: string;
+  questionId: number | null;
   text: string;
   type: QuestionType;
   points: string;
   answerOptions: OptionDraft[];
+  knowledgeConceptIds: number[];
 
   aiSource?: {
     materialId: number | null;
@@ -31,9 +33,30 @@ export interface QuestionDraft {
   };
 }
 
+export function normalizeKnowledgeConceptIds(
+  value: unknown,
+): number[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return [
+    ...new Set(
+      value.filter(
+        (id): id is number =>
+          typeof id === "number" &&
+          Number.isSafeInteger(id) &&
+          id > 0,
+      ),
+    ),
+  ];
+}
+
 export function createQuestionDraft(): QuestionDraft {
   return {
     key: crypto.randomUUID(),
+    questionId: null,
+    knowledgeConceptIds: [],
     text: "",
     type: QuestionType.SingleChoice,
     points: "1",
@@ -54,10 +77,14 @@ export function createTrueFalseOptions(): OptionDraft[] {
 export function mapQuestionToDraft(
   question: QuestionDto,
 ): QuestionDraft {
-  return {
-    key: crypto.randomUUID(),
+ return {
+  key: crypto.randomUUID(),
+  questionId: question.id,
+  knowledgeConceptIds: normalizeKnowledgeConceptIds(
+    question.knowledgeConceptIds,
+  ),
 
-    text: question.text,
+  text: question.text,
     type: question.type,
     points: String(question.points),
 
@@ -82,10 +109,12 @@ export function mapQuestionToDraft(
 export function mapAiQuestionToDraft(
   question: AiGeneratedQuestionDto,
 ): QuestionDraft {
-  return {
-    key: crypto.randomUUID(),
+return {
+  key: crypto.randomUUID(),
+  questionId: null,
+  knowledgeConceptIds: [],
 
-    text: question.text,
+  text: question.text,
     type: question.type,
     points: String(question.points),
 
@@ -317,11 +346,14 @@ export function buildFullTestPayload(
   return {
     ...toTestPayload(settings),
 
-    questions: questions.map(
-      (question): CreateQuestionDto => ({
-        text: question.text.trim(),
-        type: question.type,
-        points: Number(question.points),
+questions: questions.map(
+  (question): CreateQuestionDto => ({
+    text: question.text.trim(),
+    type: question.type,
+    points: Number(question.points),
+    knowledgeConceptIds: normalizeKnowledgeConceptIds(
+      question.knowledgeConceptIds,
+    ),
 
         answerOptions: question.answerOptions.map((option) => ({
           text: option.text.trim(),
@@ -344,4 +376,34 @@ export function buildFullTestPayload(
       }),
     ),
   };
+}
+
+
+export function synchronizeSavedQuestions(
+  savedQuestions: QuestionDto[],
+  previousQuestions: QuestionDraft[],
+): QuestionDraft[] {
+  return [...savedQuestions]
+    .sort((a, b) => a.order - b.order)
+    .map((question, index) => {
+      const next = mapQuestionToDraft(question);
+      const previous = previousQuestions[index];
+
+      if (!previous) {
+        return next;
+      }
+
+      return {
+        ...next,
+        key: previous.key,
+        answerOptions: next.answerOptions.map(
+          (option, optionIndex) => ({
+            ...option,
+            key:
+              previous.answerOptions[optionIndex]?.key ??
+              option.key,
+          }),
+        ),
+      };
+    });
 }
