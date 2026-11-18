@@ -1494,8 +1494,8 @@ const handleToggleConceptFocus = () => {
                   selected={selected}
                   onSelect={handleGraphSelection}
                   mode={mode}
-isConceptFocusEnabled={focusedConceptId !== null}
-onToggleConceptFocus={handleToggleConceptFocus}
+                  isConceptFocusEnabled={focusedConceptId !== null}
+                  onToggleConceptFocus={handleToggleConceptFocus}
                   isOwner={isOwner}
                   isBusy={isBusy}
                   onEditConcept={handleOpenEditConcept}

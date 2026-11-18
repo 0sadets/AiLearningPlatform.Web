@@ -8,8 +8,6 @@ import type {
   KnowledgeGraphGenerationResultDto,
   KnowledgeRelationEnrichmentResultDto,
   KnowledgeTopicGenerationResultDto,
-  KnowledgeGraphConceptDto,
-  KnowledgeGraphRelationDto,
   KnowledgeTopicDto,
   CreateKnowledgeConceptDto,
   UpdateKnowledgeConceptDto,
