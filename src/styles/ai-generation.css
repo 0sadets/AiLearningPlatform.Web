@@ -59,9 +59,14 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+
   max-height: 430px;
+  min-height: 0;
+
   overflow-y: auto;
-  padding-right: 4px;
+  overflow-x: hidden;
+
+  padding: 2px 6px 2px 2px;
 }
 
 .ai-generation-material {
@@ -89,12 +94,21 @@
 }
 
 .ai-generation-material span {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
+
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+
+  overflow: hidden;
   overflow-wrap: anywhere;
+
   color: #374151;
   font-size: 13px;
   font-weight: 500;
+  line-height: 1.5;
 }
 
 .ai-generation-material small {
@@ -282,27 +296,412 @@
   flex-shrink: 0;
 }
 
+/* =========================
+   AI GENERATION RESULT PREVIEW
+========================= */
+
 .ai-generation-result {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 13px;
-  padding: 19px;
+  gap: 18px;
+
+  padding: 20px;
+  min-width: 0;
+
+  background: #f8faff;
   border: 1px solid #c7d2fe;
-  border-radius: 11px;
+  border-radius: 12px;
+}
+
+.ai-generation-result-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ai-generation-result-heading h4 {
+  margin: 0;
+  color: #3730a3;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.ai-generation-result-heading > span {
+  padding: 5px 9px;
+  border-radius: 7px;
+  background: #e0e7ff;
+  color: #4f46e5;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.ai-generation-result-note {
+  margin: 0;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.ai-generation-result-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px;
+  border: 1px solid #e0e7ff;
+  border-radius: 10px;
+  background: #f8faff;
+  color: #4f46e5;
+  font-size: 13px;
+}
+
+/* Список згенерованих питань */
+
+.ai-generation-preview-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ai-generation-preview-card {
+  min-width: 0;
+  overflow: hidden;
+
+  background: white;
+  border: 1px solid #e0e7ff;
+  border-radius: 10px;
+}
+
+.ai-generation-preview-card--expanded {
+  border-color: #a5b4fc;
+}
+
+.ai-generation-preview-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  width: 100%;
+  padding: 14px;
+
+  border: 0;
+  background: transparent;
+  color: #111827;
+
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ai-generation-preview-toggle:hover {
+  background: #fafaff;
+}
+
+.ai-generation-preview-toggle > svg {
+  flex-shrink: 0;
+  color: #818cf8;
+}
+
+.ai-generation-preview-number {
+  display: grid;
+  place-items: center;
+
+  width: 35px;
+  height: 35px;
+  flex-shrink: 0;
+
+  background: #eef2ff;
+  color: #4f46e5;
+  border-radius: 9px;
+
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.ai-generation-preview-info {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.ai-generation-preview-info strong {
+  color: #111827;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.ai-generation-preview-info small {
+  color: #6b7280;
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+/* Розгорнуте питання */
+
+.ai-generation-preview-body {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+
+  padding: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.ai-generation-preview-section-title {
+  color: #374151;
+  font-size: 13px;
+}
+
+.ai-generation-preview-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-generation-preview-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  padding: 11px 12px;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 9px;
+
+  background: #fff;
+  color: #374151;
+
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.ai-generation-preview-option--correct {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #166534;
+}
+
+.ai-generation-preview-option-letter {
+  display: grid;
+  place-items: center;
+
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+
+  border-radius: 7px;
+  background: #f3f4f6;
+
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ai-generation-preview-option--correct
+.ai-generation-preview-option-letter {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.ai-generation-preview-option > span:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+}
+
+.ai-generation-preview-option > svg {
+  color: #16a34a;
+  flex-shrink: 0;
+}
+
+/* Джерело питання */
+
+.ai-generation-preview-source {
+  padding: 14px;
+  border: 1px solid #e0e7ff;
+  border-radius: 9px;
   background: #f8faff;
 }
 
-.ai-generation-result strong {
-  color: #3730a3;
-  font-size: 15px;
+.ai-generation-preview-source strong {
+  color: #4338ca;
+  font-size: 12px;
 }
 
-.ai-generation-result p {
+.ai-generation-preview-source p {
+  margin: 8px 0;
+  color: #4b5563;
+  font-size: 12px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.ai-generation-preview-source small {
+  color: #818cf8;
+  font-size: 11px;
+}
+
+/* Додавання питань */
+
+.ai-generation-result-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.ai-generation-result-actions p {
   margin: 0;
   color: #6b7280;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.6;
+}
+
+/* =========================
+   NEXT GENERATION
+========================= */
+
+.ai-generation-next {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+
+  padding: 18px;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 11px;
+  background: #fafafa;
+}
+
+.ai-generation-next-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.ai-generation-next-heading strong {
+  color: #111827;
+  font-size: 14px;
+}
+
+.ai-generation-next-heading p {
+  margin: 6px 0 0;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.ai-generation-next-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  min-height: 40px;
+  padding: 10px 14px;
+
+  border: 1px solid #c7d2fe;
+  border-radius: 9px;
+  background: white;
+
+  color: #4f46e5;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.ai-generation-next-button:hover:not(:disabled) {
+  background: #eef2ff;
+  border-color: #a5b4fc;
+}
+
+.ai-generation-next-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Підтвердження скидання */
+
+.ai-generation-reset-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  padding: 16px;
+
+  background: #fff;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+}
+
+.ai-generation-reset-confirm strong {
+  color: #991b1b;
+  font-size: 13px;
+}
+
+.ai-generation-reset-confirm p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.ai-generation-reset-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.ai-generation-retry {
+  margin-left: auto;
+  padding: 5px 10px;
+
+  border: 1px solid #fcd34d;
+  border-radius: 7px;
+  background: white;
+
+  color: #92400e;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (max-width: 680px) {
+  .ai-generation-result {
+    padding: 14px;
+  }
+
+  .ai-generation-preview-toggle {
+    padding: 12px;
+  }
+
+  .ai-generation-preview-body {
+    padding: 12px;
+  }
+
+  .ai-generation-result-actions .test-btn,
+  .ai-generation-next-button {
+    width: 100%;
+  }
+
+  .ai-generation-reset-actions {
+    flex-direction: column;
+  }
+
+  .ai-generation-reset-actions .test-btn {
+    width: 100%;
+  }
 }
 
 .ai-generation-cancel,
@@ -356,7 +755,11 @@
 /* PDF page range selection */
 
 .ai-generation-material-card {
+  flex: 0 0 auto;
+  min-height: 0;
+
   overflow: hidden;
+
   border: 1px solid #e5e7eb;
   border-radius: 11px;
   background: #fff;
@@ -470,12 +873,27 @@
   display: flex;
   align-items: center;
   gap: 8px;
+
+  min-width: 0;
   padding-right: 12px;
+}
+.ai-generation-material-row {
+  min-height: 56px;
+}
+
+.ai-generation-material-card .ai-generation-material {
+  min-height: 56px;
+  box-sizing: border-box;
 }
 
 .ai-generation-material-row .ai-generation-material {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
+  width: 100%;
+}
+.ai-generation-material small {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .ai-generation-material-open {

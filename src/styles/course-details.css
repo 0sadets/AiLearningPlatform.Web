@@ -838,3 +838,80 @@ button.back-link {
   box-shadow:
     0 20px 50px rgba(17, 24, 39, 0.18);
 }
+
+
+/* =========================
+   KNOWLEDGE GRAPH ENTRY
+========================= */
+
+.kg-course-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.kg-course-entry-info {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+}
+
+.kg-course-entry-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  width: 56px;
+  height: 56px;
+
+  background: #eef2ff;
+  border-radius: 13px;
+
+  color: #4f46e5;
+}
+
+.kg-course-entry-info h2 {
+  margin: 0 0 6px;
+
+  color: #111827;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.kg-course-entry-info p {
+  max-width: 600px;
+  margin: 0;
+
+  color: #6b7280;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.kg-course-entry-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  flex-shrink: 0;
+
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+@media (max-width: 768px) {
+  .kg-course-entry {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .kg-course-entry-info {
+    align-items: flex-start;
+  }
+
+  .kg-course-entry-link {
+    width: 100%;
+  }
+}

@@ -15,7 +15,6 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Централізовано обробляємо помилки авторизації
 api.interceptors.response.use(
   (response) => response,
 

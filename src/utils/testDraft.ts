@@ -197,7 +197,33 @@ export function getQuestionDraftErrors(
         "Для «Так / Ні» оберіть одну правильну відповідь.";
     }
   }
+// Перевірка однакових варіантів відповідей
+const normalizedOptions = new Map<string, string[]>();
 
+for (const option of question.answerOptions) {
+  const normalizedText = option.text
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLocaleLowerCase("uk-UA");
+
+  if (!normalizedText) continue;
+
+  const keys = normalizedOptions.get(normalizedText) ?? [];
+  keys.push(option.key);
+
+  normalizedOptions.set(normalizedText, keys);
+}
+
+for (const keys of normalizedOptions.values()) {
+  if (keys.length < 2) continue;
+
+  errors.options ??= {};
+
+  for (const key of keys) {
+    errors.options[key] =
+      "Такий варіант відповіді вже існує.";
+  }
+}
   return errors;
 }
 
