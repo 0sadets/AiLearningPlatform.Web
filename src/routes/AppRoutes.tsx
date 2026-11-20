@@ -16,7 +16,7 @@ import TestDetailsPage from "../pages/TestDetailsPage";
 import TestTakingPage from "../pages/TestTakingPage";
 import TestResultPage from "../pages/TestResultPage";
 import KnowledgeGraphPage from "../pages/KnowledgeGraphPage";
-
+import StudentAnalyticsPage from "../pages/StudentAnalyticsPage";
 import TeacherTestResultsPage from "../pages/TeacherTestResultsPage";
 import TeacherAttemptDetailsPage from "../pages/TeacherAttemptDetailsPage";
 
@@ -33,6 +33,10 @@ function AppRoutes() {
           <Route
             path="/courses/:courseId/knowledge-graph"
             element={<KnowledgeGraphPage />}
+          />
+          <Route
+            path="/courses/:courseId/analytics/me"
+            element={<StudentAnalyticsPage />}
           />
           <Route path="/profile" element={<ProfilePage />} />
           <Route

@@ -915,3 +915,38 @@ button.back-link {
     width: 100%;
   }
 }
+
+/* COURSE ANALYTICS ENTRY */
+
+.ka-course-entry-icon {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.ka-course-entry-coming {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f9fafb;
+  color: #9ca3af;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .ka-course-entry-coming {
+    align-self: flex-start;
+  }
+}
+
+
+.material-item:target {
+  margin: 0 -10px;
+  padding-left: 10px;
+  padding-right: 10px;
+  border-radius: 9px;
+  background: #f5f6ff;
+  outline: 1px solid #c7d2fe;
+  scroll-margin-top: 100px;
+}
