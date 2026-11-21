@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { AxiosError } from "axios";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+
 import "../styles/course-details.css";
 import { joinPublicCourse, leavePublicCourse } from "../api/enrollmentsApi";
 
@@ -23,6 +24,7 @@ import {
   BookOpen,
   ExternalLink,
   Network,
+  BarChart3,
   Pencil,
   Trash2,
 } from "lucide-react";
@@ -32,6 +34,7 @@ import CourseTestsSection from "../components/CourseTestsSection";
 function CourseDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [course, setCourse] = useState<CourseDetails | null>(null);
 
@@ -232,6 +235,28 @@ function CourseDetailsPage() {
 
     loadCourse();
   }, [id, showToast]);
+
+  useEffect(() => {
+    if (isLoading || !location.hash.startsWith("#material-")) {
+      return;
+    }
+
+    const materialId = Number(location.hash.replace("#material-", ""));
+
+    if (!Number.isSafeInteger(materialId) || materialId <= 0) {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById(`material-${materialId}`)?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [isLoading, materials, location.hash]);
+
   if (isLoading) {
     return (
       <div className="page">
@@ -298,28 +323,28 @@ function CourseDetailsPage() {
               {!course.isOwner &&
                 !course.isEnrolled &&
                 course.visibility === CourseVisibility.Public && (
-                <button
-                  type="button"
-                  className="primary-button"
-                  onClick={handleJoinCourse}
-                  disabled={isEnrollmentProcessing}
-                >
-                  {isEnrollmentProcessing ? "Приєднання..." : "Приєднатися"}
-                </button>
-              )}
+                  <button
+                    type="button"
+                    className="primary-button"
+                    onClick={handleJoinCourse}
+                    disabled={isEnrollmentProcessing}
+                  >
+                    {isEnrollmentProcessing ? "Приєднання..." : "Приєднатися"}
+                  </button>
+                )}
 
               {!course.isOwner &&
                 course.isEnrolled &&
                 course.visibility === CourseVisibility.Public && (
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={handleLeaveCourse}
-                  disabled={isEnrollmentProcessing}
-                >
-                  {isEnrollmentProcessing ? "Вихід..." : "Вийти з курсу"}
-                </button>
-              )}
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={handleLeaveCourse}
+                    disabled={isEnrollmentProcessing}
+                  >
+                    {isEnrollmentProcessing ? "Вихід..." : "Вийти з курсу"}
+                  </button>
+                )}
 
               {course.isOwner && (
                 <Link
@@ -432,32 +457,64 @@ function CourseDetailsPage() {
           </div>
         </section>
       )}
-{(course.isOwner || course.isEnrolled) && (
-  <section className="content-section kg-course-entry">
-    <div className="kg-course-entry-info">
-      <div className="kg-course-entry-icon">
-        <Network size={25} />
-      </div>
+      {(course.isOwner || course.isEnrolled) && (
+        <section className="content-section kg-course-entry">
+          <div className="kg-course-entry-info">
+            <div className="kg-course-entry-icon">
+              <Network size={25} />
+            </div>
 
-      <div>
-        <h2>Граф знань</h2>
+            <div>
+              <h2>Граф знань</h2>
 
-        <p>
-          Досліджуйте навчальні теми, ключові поняття
-          та зв'язки між ними в інтерактивній карті.
-        </p>
-      </div>
-    </div>
+              <p>
+                Досліджуйте навчальні теми, ключові поняття та зв'язки між ними
+                в інтерактивній карті.
+              </p>
+            </div>
+          </div>
 
-    <Link
-      to={`/courses/${course.id}/knowledge-graph`}
-      className="secondary-button kg-course-entry-link"
-    >
-      Переглянути граф
-      <ArrowRight size={17} />
-    </Link>
-  </section>
-)}
+          <Link
+            to={`/courses/${course.id}/knowledge-graph`}
+            className="secondary-button kg-course-entry-link"
+          >
+            Переглянути граф
+            <ArrowRight size={17} />
+          </Link>
+        </section>
+      )}
+
+      {(course.isOwner || course.isEnrolled) && (
+        <section className="content-section kg-course-entry ka-course-entry">
+          <div className="kg-course-entry-info">
+            <div className="kg-course-entry-icon ka-course-entry-icon">
+              <BarChart3 size={25} />
+            </div>
+
+            <div>
+              <h2>{course.isOwner ? "Аналітика курсу" : "Моя аналітика"}</h2>
+
+              <p>
+                {course.isOwner
+                  ? "Аналізуйте результати навчання, складні поняття та питання, які потребують уваги."
+                  : "Переглядайте свої результати, навчальний прогрес і рекомендації щодо повторення матеріалів."}
+              </p>
+            </div>
+          </div>
+
+          {course.isOwner ? (
+            <span className="ka-course-entry-coming">Незабаром</span>
+          ) : (
+            <Link
+              to={`/courses/${course.id}/analytics/me`}
+              className="secondary-button kg-course-entry-link"
+            >
+              Переглянути аналітику
+              <ArrowRight size={17} />
+            </Link>
+          )}
+        </section>
+      )}
       {(course.isOwner || course.isEnrolled) && (
         <CourseTestsSection courseId={course.id} isOwner={course.isOwner} />
       )}
@@ -533,7 +590,7 @@ function MaterialItem({
   };
 
   return (
-    <div className="material-item">
+    <div id={`material-${material.id}`} className="material-item">
       <div className="material-main">
         <div className="material-type">{getTypeName()}</div>
 
