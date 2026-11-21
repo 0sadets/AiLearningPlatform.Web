@@ -6,9 +6,13 @@ import { formatAnalyticsPercent } from "../../utils/knowledgeAnalytics";
 
 interface Props {
   analytics: StudentKnowledgeAnalyticsDto;
+  viewer?: "student" | "teacher";
 }
 
-export default function StudentAnalyticsOverview({ analytics }: Props) {
+export default function StudentAnalyticsOverview({
+  analytics,
+  viewer = "student",
+}: Props) {
   const { summary, testProgress } = analytics;
 
   const hasTestProgress = testProgress != null;
@@ -41,7 +45,11 @@ export default function StudentAnalyticsOverview({ analytics }: Props) {
     <section className="ka-overview" aria-label="Огляд навчання">
       <div className="ka-overview-heading">
         <div>
-          <h2>Ваш навчальний прогрес</h2>
+          <h2>
+  {viewer === "teacher"
+    ? "Навчальний прогрес студента"
+    : "Ваш навчальний прогрес"}
+</h2>
           <p>Основне про навчання та результати тестів.</p>
         </div>
       </div>

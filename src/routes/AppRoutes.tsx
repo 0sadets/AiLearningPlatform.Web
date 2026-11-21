@@ -19,6 +19,8 @@ import KnowledgeGraphPage from "../pages/KnowledgeGraphPage";
 import StudentAnalyticsPage from "../pages/StudentAnalyticsPage";
 import TeacherTestResultsPage from "../pages/TeacherTestResultsPage";
 import TeacherAttemptDetailsPage from "../pages/TeacherAttemptDetailsPage";
+import TeacherAnalyticsPage from "../pages/TeacherAnalyticsPage";
+import TeacherStudentAnalyticsPage from "../pages/TeacherStudentAnalyticsPage";
 
 function AppRoutes() {
   return (
@@ -37,6 +39,16 @@ function AppRoutes() {
           <Route
             path="/courses/:courseId/analytics/me"
             element={<StudentAnalyticsPage />}
+          />
+
+          <Route
+            path="/courses/:courseId/analytics/overview"
+            element={<TeacherAnalyticsPage />}
+          />
+
+          <Route
+            path="/courses/:courseId/analytics/students/:studentId"
+            element={<TeacherStudentAnalyticsPage />}
           />
           <Route path="/profile" element={<ProfilePage />} />
           <Route

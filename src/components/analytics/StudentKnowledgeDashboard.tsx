@@ -24,6 +24,7 @@ import {
 interface Props {
   courseId: number;
   analytics: StudentKnowledgeAnalyticsDto;
+  viewer?: "student" | "teacher";
 }
 
 type ConceptSort = "name" | "lowest" | "highest" | "questions";
@@ -113,10 +114,7 @@ function compareScores(
   return descending ? bScore - aScore : aScore - bScore;
 }
 
-function countLabel(
-  count: number,
-  forms: [string, string, string],
-): string {
+function countLabel(count: number, forms: [string, string, string]): string {
   const lastTwo = count % 100;
   const last = count % 10;
 
@@ -135,9 +133,9 @@ function countLabel(
 export default function StudentKnowledgeDashboard({
   courseId,
   analytics,
+  viewer = "student",
 }: Props) {
-  const { concepts, topics, recommendations, attemptHistory } =
-    analytics;
+  const { concepts, topics, recommendations, attemptHistory } = analytics;
 
   const [conceptSearch, setConceptSearch] = useState("");
   const [conceptSort, setConceptSort] = useState<ConceptSort>("name");
@@ -261,14 +259,12 @@ export default function StudentKnowledgeDashboard({
         </div>
       )}
 
-      <StudentAnalyticsOverview analytics={analytics} />
+      <StudentAnalyticsOverview analytics={analytics} viewer={viewer} />
 
       <AnalyticsCollapsibleSection
         title="Навчальні теми"
         description="Перегляньте свої результати за темами курсу."
-        countLabel={countLabel(topics.length, [
-  "тема", "теми", "тем",
-])}
+        countLabel={countLabel(topics.length, ["тема", "теми", "тем"])}
         defaultOpen
       >
         {!analytics.hasCurrentTopics ? (
@@ -327,8 +323,10 @@ export default function StudentKnowledgeDashboard({
         title="Результати за поняттями"
         description="Дізнайтеся, які поняття вже перевірялися в тестах."
         countLabel={countLabel(concepts.length, [
-  "поняття", "поняття", "понять",
-])}
+          "поняття",
+          "поняття",
+          "понять",
+        ])}
       >
         {chartConcepts.length === 0 ? (
           <div className="ka-empty">
@@ -574,8 +572,10 @@ export default function StudentKnowledgeDashboard({
         title="Рекомендуємо повторити"
         description="Матеріали, які можуть допомогти покращити результати."
         countLabel={countLabel(recommendations.length, [
-  "рекомендація", "рекомендації", "рекомендацій",
-])}
+          "рекомендація",
+          "рекомендації",
+          "рекомендацій",
+        ])}
         defaultOpen
       >
         {recommendations.length === 0 ? (
@@ -625,13 +625,17 @@ export default function StudentKnowledgeDashboard({
       <AnalyticsCollapsibleSection
         title="Мої результати тестів"
         description="Перегляньте попередні проходження та зміну результатів."
-      countLabel={countLabel(attemptHistory.length, [
-  "спроба", "спроби", "спроб",
-])}
+        countLabel={countLabel(attemptHistory.length, [
+          "спроба",
+          "спроби",
+          "спроб",
+        ])}
       >
         {orderedHistory.length === 0 ? (
           <div className="ka-empty">
-            Ви ще не завершили жодного тесту в цьому курсі.
+            {viewer === "teacher"
+              ? "Студент ще не завершив жодного тесту в цьому курсі."
+              : "Ви ще не завершили жодного тесту в цьому курсі."}
           </div>
         ) : (
           <>
@@ -778,7 +782,11 @@ export default function StudentKnowledgeDashboard({
 
                       <td>
                         <Link
-                          to={`/attempts/${attempt.attemptId}/review`}
+                          to={
+                            viewer === "teacher"
+                              ? `/attempts/${attempt.attemptId}/details`
+                              : `/attempts/${attempt.attemptId}/review`
+                          }
                           className="ka-table-link"
                         >
                           Переглянути

@@ -107,3 +107,104 @@ export interface StudentKnowledgeAnalyticsDto {
   attemptHistory: StudentAttemptHistoryDto[];
   warnings: string[];
 }
+
+
+export interface TeacherAnalyticsSummaryDto {
+  enrolledStudents: number;
+  studentsWithCompletedTests: number;
+  completedAttempts: number;
+  latestCompletedAttempts: number;
+  excludedLatestAttempts: number;
+  averageTestPercent: number | null;
+  assessedConcepts: number;
+  groupDifficultyCases: number;
+  individualDifficultyCases: number;
+  questionsForReview: number;
+}
+
+export interface TeacherConceptAnalyticsDto {
+  conceptId: number;
+  name: string;
+  averageMasteryPercent: number | null;
+  studentsAssessed: number;
+  questionsCount: number;
+  dataStatus: AnalyticsDataStatus;
+  hasGroupDifficulty: boolean;
+}
+
+export interface TeacherTopicAnalyticsDto {
+  topicId: number;
+  name: string;
+  totalConcepts: number;
+  assessedConcepts: number;
+  averageMasteryPercent: number | null;
+  dataStatus: AnalyticsDataStatus;
+  conceptIds: number[];
+}
+
+export interface TeacherStudentAnalyticsDto {
+  userId: number;
+  firstName: string;
+  lastName: string;
+  completedTests: number;
+  averageTestPercent: number | null;
+  assessedConcepts: number;
+  individualDifficultyCases: number;
+}
+
+export interface TeacherQuestionWrongOptionDto {
+  optionId: number;
+  text: string;
+  selectedCount: number;
+}
+
+export interface TeacherQuestionAnalyticsDto {
+  questionId: number;
+  testId: number;
+  text: string;
+  participantsCount: number;
+  correctCount: number;
+  incorrectCount: number;
+  unansweredCount: number;
+  errorPercent: number | null;
+  historicalConceptIds: number[];
+  currentConceptIds: number[];
+  wrongOptions: TeacherQuestionWrongOptionDto[];
+  needsReview: boolean;
+  errorContrastPercent: number | null;
+}
+
+export type TeacherFindingKind =
+  | "IndividualDifficulty"
+  | "GroupDifficulty"
+  | "QuestionReview";
+
+export type AnalyticsEvidenceLevel =
+  | "Preliminary"
+  | "Comparative";
+
+export interface TeacherAnalyticsFindingDto {
+  kind: TeacherFindingKind;
+  title: string;
+  explanation: string;
+  recommendedAction: string;
+  conceptId: number | null;
+  questionId: number | null;
+  userId: number | null;
+  evidenceLevel: AnalyticsEvidenceLevel;
+}
+
+export interface TeacherKnowledgeAnalyticsDto {
+  courseId: number;
+  graphRevision: number;
+  calculatedAtUtc: string;
+  hasCurrentTopics: boolean;
+
+  summary: TeacherAnalyticsSummaryDto;
+  concepts: TeacherConceptAnalyticsDto[];
+  topics: TeacherTopicAnalyticsDto[];
+  students: TeacherStudentAnalyticsDto[];
+  questions: TeacherQuestionAnalyticsDto[];
+  findings: TeacherAnalyticsFindingDto[];
+  warnings: string[];
+}
