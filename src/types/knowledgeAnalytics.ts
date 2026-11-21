@@ -86,11 +86,19 @@ export interface StudentAttemptHistoryDto {
   hasKnowledgeSnapshot: boolean;
 }
 
+export interface StudentCourseTestProgressDto {
+  totalAvailableTests: number;
+  completedAvailableTests: number;
+  notCompletedAvailableTests: number;
+  completionPercent: number | null;
+}
+
 export interface StudentKnowledgeAnalyticsDto {
   courseId: number;
   graphRevision: number;
   calculatedAtUtc: string;
   hasCurrentTopics: boolean;
+  testProgress?: StudentCourseTestProgressDto | null;
 
   summary: StudentAnalyticsSummaryDto;
   concepts: StudentConceptAnalyticsDto[];

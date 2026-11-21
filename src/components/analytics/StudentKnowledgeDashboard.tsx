@@ -1,13 +1,9 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  AlertCircle,
-  BookOpen,
-  ChevronRight,
-  Info,
-  Search,
-  X,
-} from "lucide-react";
+import { AlertCircle, BookOpen, ChevronRight, Search, X } from "lucide-react";
+
+import AnalyticsCollapsibleSection from "./AnalyticsCollapsibleSection";
+import StudentAnalyticsOverview from "./StudentAnalyticsOverview";
 
 import type {
   AnalyticsDataStatus,
@@ -30,11 +26,7 @@ interface Props {
   analytics: StudentKnowledgeAnalyticsDto;
 }
 
-type ConceptSort =
-  | "name"
-  | "lowest"
-  | "highest"
-  | "questions";
+type ConceptSort = "name" | "lowest" | "highest" | "questions";
 
 function AnalyticsProgress({
   value,
@@ -43,8 +35,7 @@ function AnalyticsProgress({
   value: number | null;
   status: AnalyticsDataStatus;
 }) {
-  const hasValue =
-    value !== null && status !== "NoData";
+  const hasValue = value !== null && status !== "NoData";
 
   return (
     <div
@@ -52,9 +43,7 @@ function AnalyticsProgress({
         status === "Limited" ? "ka-progress--limited" : ""
       }`}
       aria-label={
-        hasValue
-          ? formatAnalyticsPercent(value)
-          : "Немає результатів"
+        hasValue ? formatAnalyticsPercent(value) : "Немає результатів"
       }
     >
       {hasValue && (
@@ -79,9 +68,7 @@ function AnalyticsMaterials({
 }) {
   if (materials.length === 0) {
     return (
-      <p className="ka-muted">
-        Пов'язаних навчальних матеріалів поки немає.
-      </p>
+      <p className="ka-muted">Пов'язаних навчальних матеріалів поки немає.</p>
     );
   }
 
@@ -100,9 +87,7 @@ function AnalyticsMaterials({
             {material.materialTitle}
           </Link>
 
-          {material.excerpt && (
-            <blockquote>{material.excerpt}</blockquote>
-          )}
+          {material.excerpt && <blockquote>{material.excerpt}</blockquote>}
         </div>
       ))}
     </div>
@@ -114,15 +99,9 @@ function compareScores(
   b: StudentConceptAnalyticsDto,
   descending: boolean,
 ): number {
-  const aScore =
-    a.dataStatus === "NoData"
-      ? null
-      : a.observedMasteryPercent;
+  const aScore = a.dataStatus === "NoData" ? null : a.observedMasteryPercent;
 
-  const bScore =
-    b.dataStatus === "NoData"
-      ? null
-      : b.observedMasteryPercent;
+  const bScore = b.dataStatus === "NoData" ? null : b.observedMasteryPercent;
 
   if (aScore === null && bScore === null) {
     return a.name.localeCompare(b.name, "uk-UA");
@@ -131,56 +110,60 @@ function compareScores(
   if (aScore === null) return 1;
   if (bScore === null) return -1;
 
-  return descending
-    ? bScore - aScore
-    : aScore - bScore;
+  return descending ? bScore - aScore : aScore - bScore;
+}
+
+function countLabel(
+  count: number,
+  forms: [string, string, string],
+): string {
+  const lastTwo = count % 100;
+  const last = count % 10;
+
+  const form =
+    lastTwo >= 11 && lastTwo <= 14
+      ? forms[2]
+      : last === 1
+        ? forms[0]
+        : last >= 2 && last <= 4
+          ? forms[1]
+          : forms[2];
+
+  return `${count} ${form}`;
 }
 
 export default function StudentKnowledgeDashboard({
   courseId,
   analytics,
 }: Props) {
-  const {
-    summary,
-    concepts,
-    topics,
-    recommendations,
-    attemptHistory,
-  } = analytics;
+  const { concepts, topics, recommendations, attemptHistory } =
+    analytics;
 
   const [conceptSearch, setConceptSearch] = useState("");
-  const [conceptSort, setConceptSort] =
-    useState<ConceptSort>("name");
+  const [conceptSort, setConceptSort] = useState<ConceptSort>("name");
 
-  const [selectedConceptId, setSelectedConceptId] =
-    useState<number | null>(null);
+  const [selectedConceptId, setSelectedConceptId] = useState<number | null>(
+    null,
+  );
 
-  const [selectedTestId, setSelectedTestId] =
-    useState<number | null>(null);
+  const [selectedTestId, setSelectedTestId] = useState<number | null>(null);
 
   const conceptsById = useMemo(
-    () => new Map(concepts.map((concept) => [
-      concept.conceptId,
-      concept,
-    ])),
+    () => new Map(concepts.map((concept) => [concept.conceptId, concept])),
     [concepts],
   );
 
   const selectedConcept =
     selectedConceptId === null
       ? null
-      : conceptsById.get(selectedConceptId) ?? null;
+      : (conceptsById.get(selectedConceptId) ?? null);
 
   const filteredConcepts = useMemo(() => {
-    const query = conceptSearch
-      .trim()
-      .toLocaleLowerCase("uk-UA");
+    const query = conceptSearch.trim().toLocaleLowerCase("uk-UA");
 
     return [...concepts]
       .filter((concept) =>
-        concept.name
-          .toLocaleLowerCase("uk-UA")
-          .includes(query),
+        concept.name.toLocaleLowerCase("uk-UA").includes(query),
       )
       .sort((a, b) => {
         if (conceptSort === "lowest") {
@@ -227,24 +210,21 @@ export default function StudentKnowledgeDashboard({
       [
         ...new Map(
           orderedHistory.map(
-            (attempt) =>
-              [attempt.testId, attempt.testTitle] as const,
+            (attempt) => [attempt.testId, attempt.testTitle] as const,
           ),
         ),
       ].map(([id, title]) => ({ id, title })),
     [orderedHistory],
   );
 
-  const activeTestId =
-    selectedTestId ?? testOptions[0]?.id ?? null;
+  const activeTestId = selectedTestId ?? testOptions[0]?.id ?? null;
 
   const chartAttempts = useMemo(
     () =>
       orderedHistory
         .filter(
           (attempt) =>
-            attempt.testId === activeTestId &&
-            attempt.percentage !== null,
+            attempt.testId === activeTestId && attempt.percentage !== null,
         )
         .reverse(),
     [orderedHistory, activeTestId],
@@ -256,10 +236,7 @@ export default function StudentKnowledgeDashboard({
         ? 340
         : 60 + (560 * index) / (chartAttempts.length - 1);
 
-    const percent = Math.max(
-      0,
-      Math.min(100, attempt.percentage ?? 0),
-    );
+    const percent = Math.max(0, Math.min(100, attempt.percentage ?? 0));
 
     return {
       x,
@@ -267,41 +244,6 @@ export default function StudentKnowledgeDashboard({
       attempt,
     };
   });
-
-  const kpis = [
-    {
-      label: "Поняття у графі",
-      value: summary.totalConcepts,
-      hint: "Навчальні поняття курсу",
-    },
-    {
-      label: "Є результати",
-      value: summary.assessedConcepts,
-      hint: `Із ${summary.totalConcepts} понять`,
-    },
-    {
-      label: "Достатньо даних",
-      value: summary.sufficientlyAssessedConcepts,
-      hint: "Для обґрунтованого оцінювання",
-    },
-    {
-      label: "Завершено тестів",
-      value: summary.completedTests,
-      hint: "Різних тестів",
-    },
-    {
-      label: "Спроб тестування",
-      value: summary.completedAttempts,
-      hint: "Усі завершені спроби",
-    },
-    {
-      label: "Поняття для повторення",
-      value:
-        summary.conceptsNeedingReview +
-        summary.preliminaryConceptsNeedingReview,
-      hint: `Попередніх сигналів: ${summary.preliminaryConceptsNeedingReview}`,
-    },
-  ];
 
   return (
     <div className="ka-dashboard">
@@ -319,48 +261,23 @@ export default function StudentKnowledgeDashboard({
         </div>
       )}
 
-      <section
-        className="ka-kpi-grid"
-        aria-label="Загальні результати"
+      <StudentAnalyticsOverview analytics={analytics} />
+
+      <AnalyticsCollapsibleSection
+        title="Навчальні теми"
+        description="Перегляньте свої результати за темами курсу."
+        countLabel={countLabel(topics.length, [
+  "тема", "теми", "тем",
+])}
+        defaultOpen
       >
-        {kpis.map((kpi) => (
-          <div key={kpi.label} className="ka-kpi-card">
-            <span>{kpi.label}</span>
-            <strong>{kpi.value}</strong>
-            <small>{kpi.hint}</small>
-          </div>
-        ))}
-      </section>
-
-      <div className="ka-data-note">
-        <Info size={17} />
-        <p>
-          Показники відображають результати за перевіреними
-          питаннями. Вони не є оцінкою засвоєння всього курсу.
-          Попередні результати позначені окремо.
-        </p>
-      </div>
-
-      <section className="ka-section">
-        <div className="ka-section-heading">
-          <div>
-            <h2>Засвоєння навчальних тем</h2>
-            <p>
-              Результати за темами та кількість понять,
-              для яких уже є оцінювання.
-            </p>
-          </div>
-        </div>
-
         {!analytics.hasCurrentTopics ? (
           <div className="ka-empty">
-            Навчальні теми потребують оновлення.
-            Поки що перегляньте результати за поняттями нижче.
+            Навчальні теми потребують оновлення. Поки що перегляньте результати
+            за поняттями нижче.
           </div>
         ) : topics.length === 0 ? (
-          <div className="ka-empty">
-            Навчальні теми поки не сформовано.
-          </div>
+          <div className="ka-empty">Навчальні теми поки не сформовано.</div>
         ) : (
           <div className="ka-topic-list">
             {topics.map((topic) => {
@@ -369,18 +286,13 @@ export default function StudentKnowledgeDashboard({
                 topic.dataStatus !== "NoData";
 
               return (
-                <div
-                  key={topic.topicId}
-                  className="ka-topic-item"
-                >
+                <div key={topic.topicId} className="ka-topic-item">
                   <div className="ka-topic-top">
                     <h3>{topic.name}</h3>
 
                     <strong>
                       {hasResult
-                        ? formatAnalyticsPercent(
-                            topic.observedMasteryPercent,
-                          )
+                        ? formatAnalyticsPercent(topic.observedMasteryPercent)
                         : "Ще не оцінено"}
                     </strong>
                   </div>
@@ -392,21 +304,16 @@ export default function StudentKnowledgeDashboard({
 
                   <div className="ka-topic-meta">
                     <span>
-                      Оцінено {topic.assessedConcepts} із{" "}
-                      {topic.totalConcepts} понять
+                      Оцінено {topic.assessedConcepts} із {topic.totalConcepts}{" "}
+                      понять
                     </span>
 
-                    <span>
-                      {getAnalyticsDataStatusLabel(
-                        topic.dataStatus,
-                      )}
-                    </span>
+                    <span>{getAnalyticsDataStatusLabel(topic.dataStatus)}</span>
                   </div>
 
                   {hasResult && (
                     <small className="ka-topic-explanation">
-                      Середній результат лише за оціненими
-                      поняттями теми
+                      Результат за поняттями, які вже перевірялися
                     </small>
                   )}
                 </div>
@@ -414,40 +321,30 @@ export default function StudentKnowledgeDashboard({
             })}
           </div>
         )}
-      </section>
+      </AnalyticsCollapsibleSection>
 
-      <section className="ka-section">
-        <div className="ka-section-heading">
-          <div>
-            <h2>Результати за поняттями</h2>
-            <p>
-              Перегляньте успішність за навчальними поняттями
-              та відкрийте детальну інформацію.
-            </p>
-          </div>
-        </div>
-
+      <AnalyticsCollapsibleSection
+        title="Результати за поняттями"
+        description="Дізнайтеся, які поняття вже перевірялися в тестах."
+        countLabel={countLabel(concepts.length, [
+  "поняття", "поняття", "понять",
+])}
+      >
         {chartConcepts.length === 0 ? (
           <div className="ka-empty">
-            Поки немає результатів за окремими поняттями.
-            Вони з'являться після проходження тестів,
-            питання яких пов'язані з графом знань.
+            Поки немає результатів за окремими поняттями. Вони з'являться після
+            проходження тестів, питання яких пов'язані з графом знань.
           </div>
         ) : (
           <div className="ka-concept-chart">
-            <h3>Поняття, які потребують найбільшої уваги</h3>
+            <h3>Результати за перевіреними поняттями</h3>
 
             {chartConcepts.map((concept) => (
-              <div
-                key={concept.conceptId}
-                className="ka-concept-chart-row"
-              >
+              <div key={concept.conceptId} className="ka-concept-chart-row">
                 <button
                   type="button"
                   className="ka-concept-chart-name"
-                  onClick={() =>
-                    setSelectedConceptId(concept.conceptId)
-                  }
+                  onClick={() => setSelectedConceptId(concept.conceptId)}
                 >
                   {concept.name}
                 </button>
@@ -458,22 +355,18 @@ export default function StudentKnowledgeDashboard({
                 />
 
                 <strong>
-                  {formatAnalyticsPercent(
-                    concept.observedMasteryPercent,
-                  )}
+                  {formatAnalyticsPercent(concept.observedMasteryPercent)}
                 </strong>
 
                 {concept.dataStatus === "Limited" && (
-                  <span className="ka-chart-limited">
-                    Попередньо
-                  </span>
+                  <span className="ka-chart-limited">Попередньо</span>
                 )}
               </div>
             ))}
 
             <p className="ka-muted">
-              Показано до 10 понять із найнижчими
-              результатами. Повний список наведено нижче.
+              Показано до 10 понять із найнижчими результатами. Повний список
+              наведено нижче.
             </p>
           </div>
         )}
@@ -487,9 +380,7 @@ export default function StudentKnowledgeDashboard({
               value={conceptSearch}
               placeholder="Знайти поняття..."
               aria-label="Пошук навчального поняття"
-              onChange={(event) =>
-                setConceptSearch(event.target.value)
-              }
+              onChange={(event) => setConceptSearch(event.target.value)}
             />
           </label>
 
@@ -498,9 +389,7 @@ export default function StudentKnowledgeDashboard({
             aria-label="Сортування понять"
             value={conceptSort}
             onChange={(event) =>
-              setConceptSort(
-                event.target.value as ConceptSort,
-              )
+              setConceptSort(event.target.value as ConceptSort)
             }
           >
             <option value="name">За назвою</option>
@@ -511,15 +400,11 @@ export default function StudentKnowledgeDashboard({
         </div>
 
         {filteredConcepts.length === 0 ? (
-          <div className="ka-empty">
-            Понять за таким запитом не знайдено.
-          </div>
+          <div className="ka-empty">Понять за таким запитом не знайдено.</div>
         ) : (
           <div
             className={`ka-concepts-layout ${
-              selectedConcept
-                ? "ka-concepts-layout--detail"
-                : ""
+              selectedConcept ? "ka-concepts-layout--detail" : ""
             }`}
           >
             <div className="ka-table-scroll">
@@ -529,7 +414,7 @@ export default function StudentKnowledgeDashboard({
                     <th>Поняття</th>
                     <th>Результат</th>
                     <th>Питань</th>
-                    <th>Дані</th>
+                    <th>Статус результату</th>
                     <th>Повторення</th>
                   </tr>
                 </thead>
@@ -547,9 +432,7 @@ export default function StudentKnowledgeDashboard({
                             type="button"
                             className="ka-table-concept-button"
                             onClick={() =>
-                              setSelectedConceptId(
-                                concept.conceptId,
-                              )
+                              setSelectedConceptId(concept.conceptId)
                             }
                           >
                             {concept.name}
@@ -571,16 +454,12 @@ export default function StudentKnowledgeDashboard({
                           <span
                             className={`ka-status ka-status--${concept.dataStatus.toLowerCase()}`}
                           >
-                            {getAnalyticsDataStatusLabel(
-                              concept.dataStatus,
-                            )}
+                            {getAnalyticsDataStatusLabel(concept.dataStatus)}
                           </span>
                         </td>
 
                         <td>
-                          {getReviewPriorityLabel(
-                            concept.reviewPriority,
-                          )}
+                          {getReviewPriorityLabel(concept.reviewPriority)}
                         </td>
                       </tr>
                     );
@@ -593,18 +472,14 @@ export default function StudentKnowledgeDashboard({
               <aside className="ka-concept-detail">
                 <div className="ka-detail-heading">
                   <div>
-                    <span className="ka-eyebrow">
-                      Навчальне поняття
-                    </span>
+                    <span className="ka-eyebrow">Навчальне поняття</span>
                     <h3>{selectedConcept.name}</h3>
                   </div>
 
                   <button
                     type="button"
                     aria-label="Закрити деталі поняття"
-                    onClick={() =>
-                      setSelectedConceptId(null)
-                    }
+                    onClick={() => setSelectedConceptId(null)}
                   >
                     <X size={19} />
                   </button>
@@ -624,49 +499,38 @@ export default function StudentKnowledgeDashboard({
                   </strong>
 
                   <span>
-                    {getAnalyticsDataStatusLabel(
-                      selectedConcept.dataStatus,
-                    )}
+                    {getAnalyticsDataStatusLabel(selectedConcept.dataStatus)}
                   </span>
                 </div>
 
                 <div className="ka-detail-stats">
                   <div>
                     <span>Питань</span>
-                    <strong>
-                      {selectedConcept.questionsCount}
-                    </strong>
+                    <strong>{selectedConcept.questionsCount}</strong>
                   </div>
 
                   <div>
                     <span>Відповідей</span>
-                    <strong>
-                      {selectedConcept.answeredQuestionsCount}
-                    </strong>
+                    <strong>{selectedConcept.answeredQuestionsCount}</strong>
                   </div>
 
                   <div>
                     <span>Правильних</span>
-                    <strong>
-                      {selectedConcept.correctAnswersCount}
-                    </strong>
+                    <strong>{selectedConcept.correctAnswersCount}</strong>
                   </div>
 
                   <div>
                     <span>Тестів</span>
-                    <strong>
-                      {selectedConcept.testsCount}
-                    </strong>
+                    <strong>{selectedConcept.testsCount}</strong>
                   </div>
                 </div>
 
                 <div className="ka-detail-block">
-                  <h4>Передумови навчання</h4>
+                  <h4>Що варто знати перед цим</h4>
 
                   {selectedConcept.prerequisiteRiskPercent !== null ? (
                     <p>
-                      Оцінений ризик через недостатньо
-                      засвоєні передумови:{" "}
+                      Оцінений ризик через недостатньо засвоєні передумови:{" "}
                       <strong>
                         {formatAnalyticsPercent(
                           selectedConcept.prerequisiteRiskPercent,
@@ -675,25 +539,19 @@ export default function StudentKnowledgeDashboard({
                     </p>
                   ) : (
                     <p>
-                      Ризик за передумовами не визначено.
+                      Поки немає даних про можливі труднощі з базовими поняттями
                     </p>
                   )}
 
-                  {selectedConcept.weakPrerequisiteConceptIds.length >
-                    0 && (
+                  {selectedConcept.weakPrerequisiteConceptIds.length > 0 && (
                     <div className="ka-prerequisites">
-                      <strong>
-                        Поняття, які варто повторити раніше:
-                      </strong>
+                      <strong>Поняття, які варто повторити раніше:</strong>
 
-                      {selectedConcept.weakPrerequisiteConceptIds.map(
-                        (id) => (
-                          <span key={id}>
-                            {conceptsById.get(id)?.name ??
-                              "Пов'язане поняття"}
-                          </span>
-                        ),
-                      )}
+                      {selectedConcept.weakPrerequisiteConceptIds.map((id) => (
+                        <span key={id}>
+                          {conceptsById.get(id)?.name ?? "Пов'язане поняття"}
+                        </span>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -710,23 +568,19 @@ export default function StudentKnowledgeDashboard({
             )}
           </div>
         )}
-      </section>
+      </AnalyticsCollapsibleSection>
 
-      <section className="ka-section">
-        <div className="ka-section-heading">
-          <div>
-            <h2>Рекомендуємо повторити</h2>
-            <p>
-              Поняття, на які варто звернути увагу
-              за результатами ваших відповідей.
-            </p>
-          </div>
-        </div>
-
+      <AnalyticsCollapsibleSection
+        title="Рекомендуємо повторити"
+        description="Матеріали, які можуть допомогти покращити результати."
+        countLabel={countLabel(recommendations.length, [
+  "рекомендація", "рекомендації", "рекомендацій",
+])}
+        defaultOpen
+      >
         {recommendations.length === 0 ? (
           <div className="ka-empty">
-            Поки немає персональних рекомендацій
-            для повторення.
+            Поки немає персональних рекомендацій для повторення.
           </div>
         ) : (
           <div className="ka-recommendations">
@@ -736,16 +590,12 @@ export default function StudentKnowledgeDashboard({
                 className="ka-recommendation"
               >
                 <div className="ka-recommendation-top">
-                  <h3>
-                    {recommendation.conceptName}
-                  </h3>
+                  <h3>{recommendation.conceptName}</h3>
 
                   <span
                     className={`ka-priority ka-priority--${recommendation.priority.toLowerCase()}`}
                   >
-                    {getRecommendationPriorityLabel(
-                      recommendation.priority,
-                    )}
+                    {getRecommendationPriorityLabel(recommendation.priority)}
                   </span>
                 </div>
 
@@ -770,39 +620,30 @@ export default function StudentKnowledgeDashboard({
             ))}
           </div>
         )}
-      </section>
+      </AnalyticsCollapsibleSection>
 
-      <section className="ka-section">
-        <div className="ka-section-heading">
-          <div>
-            <h2>Історія проходжень</h2>
-            <p>
-              Результати тестів і зміна успішності
-              між спробами.
-            </p>
-          </div>
-        </div>
-
+      <AnalyticsCollapsibleSection
+        title="Мої результати тестів"
+        description="Перегляньте попередні проходження та зміну результатів."
+      countLabel={countLabel(attemptHistory.length, [
+  "спроба", "спроби", "спроб",
+])}
+      >
         {orderedHistory.length === 0 ? (
           <div className="ka-empty">
-            Ви ще не завершили жодного тесту
-            в цьому курсі.
+            Ви ще не завершили жодного тесту в цьому курсі.
           </div>
         ) : (
           <>
             <div className="ka-history-controls">
-              <label htmlFor="ka-history-test">
-                Динаміка за тестом
-              </label>
+              <label htmlFor="ka-history-test">Динаміка за тестом</label>
 
               <select
                 id="ka-history-test"
                 className="ka-select"
                 value={activeTestId ?? ""}
                 onChange={(event) =>
-                  setSelectedTestId(
-                    Number(event.target.value),
-                  )
+                  setSelectedTestId(Number(event.target.value))
                 }
               >
                 {testOptions.map((test) => (
@@ -821,9 +662,7 @@ export default function StudentKnowledgeDashboard({
                   aria-label="Динаміка результатів за вибраним тестом"
                   preserveAspectRatio="xMidYMid meet"
                 >
-                  <title>
-                    Динаміка результатів тестування
-                  </title>
+                  <title>Динаміка результатів тестування</title>
 
                   {[0, 25, 50, 75, 100].map((percent) => {
                     const y = 178 - percent * 1.5;
@@ -855,10 +694,7 @@ export default function StudentKnowledgeDashboard({
                   {chartPoints.length > 1 && (
                     <polyline
                       points={chartPoints
-                        .map(
-                          (point) =>
-                            `${point.x},${point.y}`,
-                        )
+                        .map((point) => `${point.x},${point.y}`)
                         .join(" ")}
                       fill="none"
                       stroke="#4f46e5"
@@ -879,22 +715,14 @@ export default function StudentKnowledgeDashboard({
                         strokeWidth="2"
                       >
                         <title>
-                          {formatAnalyticsDate(
-                            point.attempt.completedAtUtc,
-                          )}
+                          {formatAnalyticsDate(point.attempt.completedAtUtc)}
                           {" — "}
-                          {formatAnalyticsPercent(
-                            point.attempt.percentage,
-                          )}
+                          {formatAnalyticsPercent(point.attempt.percentage)}
                         </title>
                       </circle>
 
                       {(chartPoints.length <= 6 ||
-                        index %
-                          Math.ceil(
-                            chartPoints.length / 6,
-                          ) ===
-                          0) && (
+                        index % Math.ceil(chartPoints.length / 6) === 0) && (
                         <text
                           x={point.x}
                           y="207"
@@ -915,8 +743,8 @@ export default function StudentKnowledgeDashboard({
                 </svg>
 
                 <p className="ka-muted">
-                  Графік показує відсоток правильного виконання
-                  вибраного тесту в різних спробах.
+                  Порівняйте свої результати за різні спроби проходження цього
+                  тесту.
                 </p>
               </div>
             )}
@@ -928,7 +756,7 @@ export default function StudentKnowledgeDashboard({
                     <th>Тест</th>
                     <th>Дата завершення</th>
                     <th>Результат</th>
-                    <th>Врахування знань</th>
+                    <th>Дані для аналізу знань</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -938,22 +766,14 @@ export default function StudentKnowledgeDashboard({
                     <tr key={attempt.attemptId}>
                       <td>{attempt.testTitle}</td>
 
-                      <td>
-                        {formatAnalyticsDate(
-                          attempt.completedAtUtc,
-                        )}
-                      </td>
+                      <td>{formatAnalyticsDate(attempt.completedAtUtc)}</td>
 
-                      <td>
-                        {formatAnalyticsPercent(
-                          attempt.percentage,
-                        )}
-                      </td>
+                      <td>{formatAnalyticsPercent(attempt.percentage)}</td>
 
                       <td>
                         {attempt.hasKnowledgeSnapshot
-                          ? "Є дані за поняттями"
-                          : "Лише результат тесту"}
+                          ? "Враховано в аналітиці"
+                          : "Без аналізу понять"}
                       </td>
 
                       <td>
@@ -971,11 +791,10 @@ export default function StudentKnowledgeDashboard({
             </div>
           </>
         )}
-      </section>
+      </AnalyticsCollapsibleSection>
 
       <div className="ka-calculated-at">
-        Дані оновлено:{" "}
-        {formatAnalyticsDate(analytics.calculatedAtUtc)}
+        Дані оновлено: {formatAnalyticsDate(analytics.calculatedAtUtc)}
       </div>
     </div>
   );
