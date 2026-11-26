@@ -1639,7 +1639,7 @@ export default function KnowledgeGraphPage() {
 
                       <span>
                         <i className="kg-mastery-dot kg-mastery-dot--none" />
-                        Ще не оцінено
+                        Не оцінено / недостатнє охоплення
                       </span>
                     </div>
 

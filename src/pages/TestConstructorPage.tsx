@@ -515,6 +515,24 @@ function TestConstructorPage({ mode }: Props) {
 
   const suggestionEntries = Object.entries(aiConceptSuggestions);
 
+  const bulkConceptQuestionIds = Object.entries(aiConceptSuggestions).flatMap(
+    ([key, suggestion]) => {
+      const questionId = Number(key);
+
+      const question = questions.find((item) => item.questionId === questionId);
+
+      if (
+        !question ||
+        (question.knowledgeConceptIds?.length ?? 0) > 0 ||
+        suggestion.selectedConceptIds.length === 0
+      ) {
+        return [];
+      }
+
+      return [questionId];
+    },
+  );
+
   const approvedSuggestionCount = suggestionEntries.filter(
     ([, suggestion]) => suggestion.approved,
   ).length;
@@ -900,7 +918,12 @@ function TestConstructorPage({ mode }: Props) {
     }
   }
 
-  async function handleConfirmAiConcepts() {
+  async function handleConfirmAiConcepts(
+    suggestionsOverride?: typeof aiConceptSuggestions,
+    onlyQuestionIds?: ReadonlySet<number>,
+  ) {
+    const suggestionsToSave = suggestionsOverride ?? aiConceptSuggestions;
+
     if (
       !test ||
       !canUseAiConceptMatching ||
@@ -915,8 +938,12 @@ function TestConstructorPage({ mode }: Props) {
       return;
     }
 
-    const approved = Object.entries(aiConceptSuggestions)
-      .filter(([, suggestion]) => suggestion.approved)
+    const approved = Object.entries(suggestionsToSave)
+      .filter(
+        ([id, suggestion]) =>
+          suggestion.approved &&
+          (!onlyQuestionIds || onlyQuestionIds.has(Number(id))),
+      )
       .map(([id, suggestion]) => ({
         questionId: Number(id),
         conceptIds: normalizeKnowledgeConceptIds(suggestion.selectedConceptIds),
@@ -964,10 +991,12 @@ function TestConstructorPage({ mode }: Props) {
     });
 
     if (changes.length === 0) {
+      const processedIds = new Set(approved.map((item) => item.questionId));
+
       setAiConceptSuggestions((current) =>
         Object.fromEntries(
           Object.entries(current).filter(
-            ([, suggestion]) => !suggestion.approved,
+            ([id]) => !processedIds.has(Number(id)),
           ),
         ),
       );
@@ -1132,6 +1161,42 @@ function TestConstructorPage({ mode }: Props) {
       setIsSavingConcepts(false);
       setIsProcessing(false);
     }
+  }
+
+  async function handleConfirmAllAiConcepts() {
+    if (
+      locked ||
+      isProcessing ||
+      isMatchingConcepts ||
+      isSavingConcepts ||
+      isDirty ||
+      !canUseAiConceptMatching ||
+      bulkConceptQuestionIds.length === 0
+    ) {
+      return;
+    }
+
+    const nextSuggestions = {
+      ...aiConceptSuggestions,
+    };
+
+    for (const questionId of bulkConceptQuestionIds) {
+      const suggestion = nextSuggestions[questionId];
+
+      if (!suggestion) continue;
+
+      nextSuggestions[questionId] = {
+        ...suggestion,
+        approved: true,
+      };
+    }
+
+    setAiConceptSuggestions(nextSuggestions);
+
+    await handleConfirmAiConcepts(
+      nextSuggestions,
+      new Set(bulkConceptQuestionIds),
+    );
   }
 
   function dismissAiConceptOffer() {
@@ -1700,10 +1765,49 @@ function TestConstructorPage({ mode }: Props) {
 
                 {hasAiConceptSuggestions && (
                   <span className="test-ai-concepts-counter">
-                    Пропозиції для {suggestionEntries.length} питань
+                    Пропозиції для{" "}
+                    {
+                      suggestionEntries.filter(
+                        ([, suggestion]) =>
+                          suggestion.recommendedConceptIds.length > 0,
+                      ).length
+                    }{" "}
+                    питань
                   </span>
                 )}
               </div>
+
+              {bulkConceptQuestionIds.length > 0 && (
+                <div className="test-ai-concept-bulk">
+                  <div>
+                    <strong>Пропозиції LearnAI готові</strong>
+
+                    <p>
+                      Можна прив'язати поняття одразу до{" "}
+                      {bulkConceptQuestionIds.length} питань або переглянути
+                      кожне окремо.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="test-btn test-btn--primary"
+                    disabled={
+                      locked ||
+                      !canUseAiConceptMatching ||
+                      isProcessing ||
+                      isMatchingConcepts ||
+                      isSavingConcepts ||
+                      isDirty
+                    }
+                    onClick={() => void handleConfirmAllAiConcepts()}
+                  >
+                    {isSavingConcepts
+                      ? "Зберігаємо прив'язки..."
+                      : `Прив'язати до ${bulkConceptQuestionIds.length} питань`}
+                  </button>
+                </div>
+              )}
 
               {hasAiConceptSuggestions && (
                 <div className="test-ai-concepts-confirm">
