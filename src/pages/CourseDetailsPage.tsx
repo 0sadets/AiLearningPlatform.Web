@@ -502,17 +502,17 @@ function CourseDetailsPage() {
             </div>
           </div>
 
-          {course.isOwner ? (
-            <span className="ka-course-entry-coming">Незабаром</span>
-          ) : (
-            <Link
-              to={`/courses/${course.id}/analytics/me`}
-              className="secondary-button kg-course-entry-link"
-            >
-              Переглянути аналітику
-              <ArrowRight size={17} />
-            </Link>
-          )}
+          <Link
+            to={
+              course.isOwner
+                ? `/courses/${course.id}/analytics/overview`
+                : `/courses/${course.id}/analytics/me`
+            }
+            className="secondary-button kg-course-entry-link"
+          >
+            Переглянути аналітику
+            <ArrowRight size={17} />
+          </Link>
         </section>
       )}
       {(course.isOwner || course.isEnrolled) && (

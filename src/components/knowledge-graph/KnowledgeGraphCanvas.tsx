@@ -15,6 +15,14 @@ import {
   type ReactFlowInstance,
 } from "@xyflow/react";
 
+import {
+  getGraphMasteryLabel,
+  getGraphMasteryTone,
+  type GraphMasteryData,
+  type GraphMasteryTone,
+  getGraphTopicMasteryTone,
+} from "../../utils/knowledgeGraphMastery";
+
 import dagre from "@dagrejs/dagre";
 
 import type {
@@ -39,6 +47,10 @@ type KnowledgeNodeData = {
   order?: number;
   dimmed: boolean;
   focusLevel?: "center" | "neighbor" | "muted";
+
+  masteryTone?: GraphMasteryTone;
+  masteryLabel?: string;
+  masteryLimited?: boolean;
 } & Record<string, unknown>;
 
 type KnowledgeFlowNode = Node<KnowledgeNodeData, "knowledge">;
@@ -49,6 +61,7 @@ interface KnowledgeGraphCanvasProps {
   mode: KnowledgeGraphViewMode;
   selected: KnowledgeGraphSelection;
   search: string;
+  mastery?: GraphMasteryData | null;
   relationFilter: KnowledgeRelationType | null;
   focusedConceptId: number | null;
   onSelect: (selection: KnowledgeGraphSelection) => void;
@@ -69,6 +82,8 @@ function KnowledgeNode({ data, selected }: NodeProps<KnowledgeFlowNode>) {
         selected ? "kg-node--selected" : "",
         data.dimmed ? "kg-node--dimmed" : "",
         data.focusLevel ? `kg-node--focus-${data.focusLevel}` : "",
+        data.masteryTone ? `kg-node--mastery-${data.masteryTone}` : "",
+        data.masteryLimited ? "kg-node--mastery-limited" : "",
       ]
         .filter(Boolean)
         .join(" ")}
@@ -88,9 +103,20 @@ function KnowledgeNode({ data, selected }: NodeProps<KnowledgeFlowNode>) {
         {data.label}
       </strong>
 
-      {data.subtitle && (
+      {data.masteryLabel ? (
+        <span
+          className="kg-node-mastery"
+          title={
+            data.masteryLimited
+              ? "Попередній результат. Для точнішого оцінювання потрібно більше відповідей."
+              : data.masteryLabel
+          }
+        >
+          {data.masteryLabel}
+        </span>
+      ) : data.subtitle ? (
         <span className="kg-node-subtitle">{data.subtitle}</span>
-      )}
+      ) : null}
 
       <Handle
         type="source"
@@ -110,6 +136,28 @@ function getNodeSize(node: KnowledgeFlowNode) {
   return node.data.kind === "topic"
     ? { width: TOPIC_WIDTH, height: TOPIC_HEIGHT }
     : { width: CONCEPT_WIDTH, height: CONCEPT_HEIGHT };
+}
+
+function getNodeMastery(
+  mastery: GraphMasteryData | null,
+  kind: "concept" | "topic",
+  id: number,
+): Pick<KnowledgeNodeData, "masteryTone" | "masteryLabel" | "masteryLimited"> {
+  if (!mastery) {
+    return {};
+  }
+
+  const value =
+    kind === "concept" ? mastery.concepts.get(id) : mastery.topics.get(id);
+
+  return {
+    masteryTone:
+      kind === "topic"
+        ? getGraphTopicMasteryTone(value)
+        : getGraphMasteryTone(value),
+    masteryLabel: getGraphMasteryLabel(value),
+    masteryLimited: value?.dataStatus === "Limited",
+  };
 }
 
 function applyAutomaticLayout(
@@ -223,6 +271,7 @@ export default function KnowledgeGraphCanvas({
   search,
   relationFilter,
   focusedConceptId,
+  mastery = null,
   onSelect,
 }: KnowledgeGraphCanvasProps) {
   const flowRef = useRef<ReactFlowInstance<KnowledgeFlowNode, Edge> | null>(
@@ -263,6 +312,7 @@ export default function KnowledgeGraphCanvas({
         label: concept.name,
         subtitle: concept.isManuallyEdited ? "Редаговано вручну" : "",
         kind: "concept",
+        ...getNodeMastery(mastery, "concept", concept.id),
 
         focusLevel:
           mode !== "relations" || focusedConceptId === null
@@ -316,6 +366,8 @@ export default function KnowledgeGraphCanvas({
           kind: "topic",
           order: topic.order,
           dimmed: false,
+
+          ...getNodeMastery(mastery, "topic", topic.id),
         },
       }));
 
@@ -351,6 +403,9 @@ export default function KnowledgeGraphCanvas({
                   subtitle,
                   kind: "concept",
                   conceptId: concept.id,
+
+                  ...getNodeMastery(mastery, "concept", concept.id),
+
                   dimmed:
                     query.length > 0 &&
                     !concept.name.toLocaleLowerCase("uk-UA").includes(query),
@@ -442,7 +497,16 @@ export default function KnowledgeGraphCanvas({
           : applyAutomaticLayout(flowNodes, flowEdges),
       edges: flowEdges,
     };
-  }, [graph, topics, mode, selected, search, relationFilter, focusedConceptId]);
+  }, [
+    graph,
+    topics,
+    mode,
+    selected,
+    search,
+    relationFilter,
+    focusedConceptId,
+    mastery,
+  ]);
 
   useEffect(() => {
     const selectionKey =
@@ -596,9 +660,25 @@ export default function KnowledgeGraphCanvas({
         <MiniMap
           pannable
           zoomable
-          nodeColor={(node) =>
-            node.id.startsWith("topic-") ? "#a5b4fc" : "#cbd5e1"
-          }
+          nodeColor={(node) => {
+            if (!mastery) {
+              return node.data?.kind === "topic" ? "#a5b4fc" : "#cbd5e1";
+            }
+
+            switch (node.data?.masteryTone) {
+              case "high":
+                return "#22c55e";
+
+              case "medium":
+                return "#f59e0b";
+
+              case "low":
+                return "#ef4444";
+
+              default:
+                return "#94a3b8";
+            }
+          }}
         />
       </ReactFlow>
     </div>
