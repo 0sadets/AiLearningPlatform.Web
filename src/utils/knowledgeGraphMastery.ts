@@ -65,7 +65,6 @@ export function getGraphTopicMasteryTone(
 ): GraphMasteryTone {
   if (
     !value ||
-    value.dataStatus !== "Sufficient" ||
     !value.totalConcepts ||
     (value.assessedConcepts ?? 0) / value.totalConcepts < 0.5
   ) {

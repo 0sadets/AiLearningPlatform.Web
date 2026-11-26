@@ -9,15 +9,15 @@ export type EnrollmentSource =
 
 
 export interface Enrollment {
-  id: number
-  courseId: number
-  userId: number
+  id: number;
+  courseId: number;
+  userId: number;
 
-  firstName: string
-  lastName: string
-  email: string
+  firstName: string;
+  lastName: string;
+  email: string;
+  avatarUrl: string | null;
 
-  enrolledAt: string
-
-  source: EnrollmentSource
+  enrolledAt: string;
+  source: EnrollmentSource;
 }

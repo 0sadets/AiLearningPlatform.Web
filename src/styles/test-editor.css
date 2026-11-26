@@ -1370,3 +1370,45 @@
     flex-wrap: wrap;
   }
 }
+
+.test-ai-concept-bulk {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 17px 19px;
+  margin: 16px 0;
+  background: #f8faff;
+  border: 1px solid #c7d2fe;
+  border-radius: 11px;
+}
+
+.test-ai-concept-bulk > div {
+  flex: 1;
+  min-width: 220px;
+}
+
+.test-ai-concept-bulk strong {
+  display: block;
+  margin-bottom: 6px;
+  color: #312e81;
+  font-size: 13px;
+}
+
+.test-ai-concept-bulk p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.test-ai-concept-bulk button {
+  flex-shrink: 0;
+}
+
+@media (max-width: 600px) {
+  .test-ai-concept-bulk button {
+    width: 100%;
+  }
+}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 //import { AxiosError } from 'axios'
-import { Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Trash2, X } from "lucide-react";
 import InviteCourseMemberModal from "./InviteCourseMemberModal";
 import {
   getCourseEnrollments,
@@ -21,11 +21,37 @@ import {
 } from "../types/courseInvitation";
 
 import { CourseVisibility } from "../types/course";
-
 interface CourseParticipantsSectionProps {
   courseId: number;
   visibility: CourseVisibility;
   onEnrollmentRemoved: () => void;
+}
+
+function ParticipantAvatar({ enrollment }: { enrollment: Enrollment }) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+
+  const avatarUrl = enrollment.avatarUrl?.trim() || null;
+  const showImage = avatarUrl !== null && failedUrl !== avatarUrl;
+
+  const initials = (
+    enrollment.firstName.charAt(0) + enrollment.lastName.charAt(0)
+  ).toLocaleUpperCase("uk-UA");
+
+  return (
+    <div className="participant-avatar" aria-hidden="true">
+      {showImage ? (
+        <img
+          src={avatarUrl}
+          alt=""
+          className="participant-avatar-image"
+          loading="lazy"
+          onError={() => setFailedUrl(avatarUrl)}
+        />
+      ) : (
+        initials || "?"
+      )}
+    </div>
+  );
 }
 
 function CourseParticipantsSection({
@@ -35,6 +61,8 @@ function CourseParticipantsSection({
 }: CourseParticipantsSectionProps) {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [invitations, setInvitations] = useState<CourseInvitation[]>([]);
+
+  const [showAllStudents, setShowAllStudents] = useState(false);
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -57,10 +85,15 @@ function CourseParticipantsSection({
 
   const isPrivate = visibility === CourseVisibility.Private;
 
+  const visibleEnrollments = showAllStudents
+    ? enrollments
+    : enrollments.slice(0, 3);
+
   useEffect(() => {
     const loadParticipants = async () => {
       setIsLoading(true);
       setError("");
+      setShowAllStudents(false);
 
       try {
         if (isPrivate) {
@@ -212,37 +245,58 @@ function CourseParticipantsSection({
               На курсі поки немає студентів.
             </div>
           ) : (
-            <div className="participants-list">
-              {enrollments.map((enrollment) => (
-                <div className="participant-item" key={enrollment.id}>
-                  <div className="participant-info">
-                    <div className="participant-avatar">
-                      {enrollment.firstName.charAt(0).toUpperCase()}
-                      {enrollment.lastName.charAt(0).toUpperCase()}
+            <>
+              <div id="course-students-list" className="participants-list">
+                {visibleEnrollments.map((enrollment) => (
+                  <div className="participant-item" key={enrollment.id}>
+                    <div className="participant-info">
+                      <ParticipantAvatar enrollment={enrollment} />
+
+                      <div className="participant-details">
+                        <h4>
+                          {enrollment.firstName} {enrollment.lastName}
+                        </h4>
+
+                        <p>{enrollment.email}</p>
+                      </div>
                     </div>
 
-                    <div>
-                      <h4>
-                        {enrollment.firstName} {enrollment.lastName}
-                      </h4>
-
-                      <p>{enrollment.email}</p>
-                    </div>
+                    <button
+                      type="button"
+                      className="participant-icon-button participant-icon-button-danger"
+                      onClick={() => setEnrollmentToRemove(enrollment)}
+                      disabled={removingUserId === enrollment.userId}
+                      title="Видалити з курсу"
+                      aria-label={`Видалити ${enrollment.firstName} ${enrollment.lastName} з курсу`}
+                    >
+                      <Trash2 size={17} />
+                    </button>
                   </div>
+                ))}
+              </div>
 
-                  <button
-                    type="button"
-                    className="participant-icon-button participant-icon-button-danger"
-                    onClick={() => setEnrollmentToRemove(enrollment)}
-                    disabled={removingUserId === enrollment.userId}
-                    title="Видалити з курсу"
-                    aria-label="Видалити з курсу"
-                  >
-                    <Trash2 size={17} />
-                  </button>
-                </div>
-              ))}
-            </div>
+              {enrollments.length > 3 && (
+                <button
+                  type="button"
+                  className="participants-expand-button"
+                  aria-expanded={showAllStudents}
+                  aria-controls="course-students-list"
+                  onClick={() => setShowAllStudents((current) => !current)}
+                >
+                  {showAllStudents ? (
+                    <>
+                      <ChevronUp size={17} />
+                      Згорнути список
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown size={17} />
+                      Показати всіх · ще {enrollments.length - 3}
+                    </>
+                  )}
+                </button>
+              )}
+            </>
           )}
         </div>
 
