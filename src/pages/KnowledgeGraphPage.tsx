@@ -17,7 +17,22 @@ import {
   Trash2,
   Search,
   Sparkles,
+  GraduationCap,
+  RotateCw,
 } from "lucide-react";
+
+import {
+  getMyCourseAnalytics,
+  getCourseAnalyticsOverview,
+} from "../api/knowledgeAnalyticsApi";
+
+import {
+  mapStudentGraphMastery,
+  mapTeacherGraphMastery,
+  type GraphMasteryData,
+} from "../utils/knowledgeGraphMastery";
+
+import KnowledgeGraphMasteryDetails from "../components/knowledge-graph/KnowledgeGraphMasteryDetails";
 
 import { getCourseById, getCourseMaterials } from "../api/coursesApi";
 
@@ -105,6 +120,16 @@ export default function KnowledgeGraphPage() {
 
   const [mode, setMode] = useState<KnowledgeGraphViewMode>("topics");
 
+  const [isMasteryEnabled, setMasteryEnabled] = useState(false);
+
+  const [masteryData, setMasteryData] = useState<GraphMasteryData | null>(null);
+
+  const [isMasteryLoading, setMasteryLoading] = useState(false);
+
+  const [masteryError, setMasteryError] = useState<string | null>(null);
+
+  const [masteryReloadKey, setMasteryReloadKey] = useState(0);
+
   const [selected, setSelected] = useState<KnowledgeGraphSelection>(null);
 
   const [isConceptFocusEnabled, setConceptFocusEnabled] = useState(false);
@@ -169,6 +194,17 @@ export default function KnowledgeGraphPage() {
 
   const isOwner = course?.isOwner === true;
   const isBusy = busyAction !== null;
+
+  const visibleMastery =
+    isMasteryEnabled &&
+    !isMasteryLoading &&
+    !masteryError &&
+    masteryData?.graphRevision === graph?.revision
+      ? masteryData
+      : null;
+
+  const canViewMastery =
+    course?.isOwner === true || course?.isEnrolled === true;
 
   const focusedConceptId =
     mode === "relations" &&
@@ -566,6 +602,72 @@ export default function KnowledgeGraphPage() {
       cancelled = true;
     };
   }, [courseId, refreshGraphData]);
+
+  useEffect(() => {
+    if (
+      !isMasteryEnabled ||
+      !graph ||
+      !course ||
+      (!course.isOwner && !course.isEnrolled)
+    ) {
+      setMasteryData(null);
+      setMasteryError(null);
+      setMasteryLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    setMasteryLoading(true);
+    setMasteryError(null);
+    setMasteryData(null);
+
+    const loadMastery = async () => {
+      try {
+        const result = course.isOwner
+          ? mapTeacherGraphMastery(await getCourseAnalyticsOverview(courseId))
+          : mapStudentGraphMastery(await getMyCourseAnalytics(courseId));
+
+        if (cancelled) return;
+
+        if (result.graphRevision !== graph.revision) {
+          setMasteryError(
+            "Граф знань змінився. Оновіть результати, щоб побачити актуальну карту.",
+          );
+          return;
+        }
+
+        setMasteryData(result);
+      } catch (error) {
+        if (cancelled) return;
+
+        if (axios.isAxiosError(error) && error.response?.status === 403) {
+          setMasteryError("У вас немає доступу до аналітики цього курсу.");
+        } else {
+          setMasteryError(
+            "Не вдалося завантажити результати навчання. Спробуйте ще раз.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setMasteryLoading(false);
+        }
+      }
+    };
+
+    void loadMastery();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    courseId,
+    course?.isOwner,
+    course?.isEnrolled,
+    graph?.revision,
+    isMasteryEnabled,
+    masteryReloadKey,
+  ]);
 
   useEffect(() => {
     if (!isGraphActionsOpen) {
@@ -1468,6 +1570,7 @@ export default function KnowledgeGraphPage() {
                 </div>
               )}
             </div>
+
             {mode === "topics" && graph.concepts.length > 120 && (
               <div className="kg-limits-notice">
                 <AlertCircle size={18} />
@@ -1476,6 +1579,106 @@ export default function KnowledgeGraphPage() {
                   формування навчальних тем потрібно не більше 120. Ви можете
                   скоригувати граф перед генерацією.
                 </p>
+              </div>
+            )}
+
+            {canViewMastery && (
+              <div className="kg-mastery-controls">
+                <button
+                  type="button"
+                  className={`kg-mastery-toggle ${
+                    isMasteryEnabled ? "kg-mastery-toggle--active" : ""
+                  }`}
+                  aria-pressed={isMasteryEnabled}
+                  onClick={() => setMasteryEnabled((current) => !current)}
+                >
+                  <GraduationCap size={18} />
+
+                  {isOwner ? "Знання групи" : "Мої знання"}
+                </button>
+
+                {isMasteryEnabled && (
+                  <button
+                    type="button"
+                    className="kg-mastery-refresh"
+                    disabled={isMasteryLoading}
+                    onClick={() => setMasteryReloadKey((value) => value + 1)}
+                  >
+                    <RotateCw size={15} />
+                    Оновити результати
+                  </button>
+                )}
+              </div>
+            )}
+
+            {isMasteryEnabled && (
+              <div className="kg-mastery-info">
+                {isMasteryLoading ? (
+                  <p role="status">Завантажуємо результати навчання...</p>
+                ) : masteryError ? (
+                  <p role="alert" className="kg-mastery-error">
+                    {masteryError}
+                  </p>
+                ) : visibleMastery ? (
+                  <>
+                    <div className="kg-mastery-legend">
+                      <span>
+                        <i className="kg-mastery-dot kg-mastery-dot--high" />
+                        80–100%
+                      </span>
+
+                      <span>
+                        <i className="kg-mastery-dot kg-mastery-dot--medium" />
+                        60–79%
+                      </span>
+
+                      <span>
+                        <i className="kg-mastery-dot kg-mastery-dot--low" />
+                        Менше 60%
+                      </span>
+
+                      <span>
+                        <i className="kg-mastery-dot kg-mastery-dot--none" />
+                        Ще не оцінено
+                      </span>
+                    </div>
+
+                    <p className="kg-mastery-hint">
+                      {isOwner
+                        ? "Кольори показують середні результати студентів за оціненими поняттями."
+                        : "Кольори показують ваші результати за поняттями, які перевірялися в тестах."}{" "}
+                      Попередні результати позначені окремо.
+                    </p>
+
+                    {isOwner &&
+                      visibleMastery.studentsWithCompletedTests === 1 && (
+                        <p className="kg-mastery-caution">
+                          Зараз результати є лише для одного студента. Робити
+                          висновки про знання всієї групи ще зарано.
+                        </p>
+                      )}
+
+                    {!visibleMastery.hasCurrentTopics && mode === "topics" && (
+                      <p className="kg-mastery-caution">
+                        Навчальні теми потребують оновлення. Результати за
+                        окремими поняттями доступні в режимі семантичних
+                        зв'язків.
+                      </p>
+                    )}
+
+                    {visibleMastery.warnings.length > 0 && (
+                      <details className="kg-mastery-warnings">
+                        <summary>
+                          Додаткова інформація про точність результатів
+                        </summary>
+
+                        {visibleMastery.warnings.map((warning, index) => (
+                          <p key={index}>{warning}</p>
+                        ))}
+                      </details>
+                    )}
+                  </>
+                ) : null}
               </div>
             )}
 
@@ -1588,26 +1791,42 @@ export default function KnowledgeGraphPage() {
                   search={search}
                   relationFilter={relationFilter}
                   focusedConceptId={focusedConceptId}
+                  mastery={visibleMastery}
                   onSelect={handleGraphSelection}
                 />
 
-                <KnowledgeGraphDetailsPanel
-                  graph={graph}
-                  topics={topics}
-                  selected={selected}
-                  onSelect={handleGraphSelection}
-                  mode={mode}
-                  isConceptFocusEnabled={focusedConceptId !== null}
-                  onToggleConceptFocus={handleToggleConceptFocus}
-                  isOwner={isOwner}
-                  isBusy={isBusy}
-                  onEditConcept={handleOpenEditConcept}
-                  onDeleteConcept={handleOpenDeleteConcept}
-                  onEditRelation={handleOpenEditRelation}
-                  onDeleteRelation={handleOpenDeleteRelation}
-                  onEditTopic={handleOpenEditTopic}
-                  onDeleteTopic={handleOpenDeleteTopic}
-                />
+                <div
+                  className={
+                    visibleMastery ? "kg-mastery-side" : "kg-details-slot"
+                  }
+                >
+                  {visibleMastery && (
+                    <KnowledgeGraphMasteryDetails
+                      courseId={courseId}
+                      mastery={visibleMastery}
+                      selected={selected}
+                      isOwner={isOwner}
+                    />
+                  )}
+
+                  <KnowledgeGraphDetailsPanel
+                    graph={graph}
+                    topics={topics}
+                    selected={selected}
+                    onSelect={handleGraphSelection}
+                    mode={mode}
+                    isConceptFocusEnabled={focusedConceptId !== null}
+                    onToggleConceptFocus={handleToggleConceptFocus}
+                    isOwner={isOwner}
+                    isBusy={isBusy}
+                    onEditConcept={handleOpenEditConcept}
+                    onDeleteConcept={handleOpenDeleteConcept}
+                    onEditRelation={handleOpenEditRelation}
+                    onDeleteRelation={handleOpenDeleteRelation}
+                    onEditTopic={handleOpenEditTopic}
+                    onDeleteTopic={handleOpenDeleteTopic}
+                  />
+                </div>
               </div>
             )}
 
