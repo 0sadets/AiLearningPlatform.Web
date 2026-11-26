@@ -2,6 +2,8 @@ import type {
   AnalyticsDataStatus,
   StudentKnowledgeAnalyticsDto,
   TeacherKnowledgeAnalyticsDto,
+  StudentConceptAnalyticsDto,
+StudentRecommendationDto,
 } from "../types/knowledgeAnalytics";
 
 export interface GraphMasteryValue {
@@ -16,10 +18,22 @@ export interface GraphMasteryValue {
 export interface GraphMasteryData {
   graphRevision: number;
   hasCurrentTopics: boolean;
+
   concepts: Map<number, GraphMasteryValue>;
   topics: Map<number, GraphMasteryValue>;
+
   warnings: string[];
   studentsWithCompletedTests?: number;
+
+  studentConceptDetails?: Map<
+    number,
+    StudentConceptAnalyticsDto
+  >;
+
+  studentRecommendations?: Map<
+    number,
+    StudentRecommendationDto
+  >;
 }
 
 export type GraphMasteryTone =
@@ -46,6 +60,21 @@ export function getGraphMasteryTone(
   return "low";
 }
 
+export function getGraphTopicMasteryTone(
+  value: GraphMasteryValue | undefined,
+): GraphMasteryTone {
+  if (
+    !value ||
+    value.dataStatus !== "Sufficient" ||
+    !value.totalConcepts ||
+    (value.assessedConcepts ?? 0) / value.totalConcepts < 0.5
+  ) {
+    return "none";
+  }
+
+  return getGraphMasteryTone(value);
+}
+
 export function getGraphMasteryLabel(
   value: GraphMasteryValue | undefined,
 ): string {
@@ -66,6 +95,20 @@ export function mapStudentGraphMastery(
   data: StudentKnowledgeAnalyticsDto,
 ): GraphMasteryData {
   return {
+
+    studentConceptDetails: new Map(
+  data.concepts.map((concept) => [
+    concept.conceptId,
+    concept,
+  ]),
+),
+
+studentRecommendations: new Map(
+  data.recommendations.map((recommendation) => [
+    recommendation.conceptId,
+    recommendation,
+  ]),
+),
     graphRevision: data.graphRevision,
     hasCurrentTopics: data.hasCurrentTopics,
     warnings: data.warnings,

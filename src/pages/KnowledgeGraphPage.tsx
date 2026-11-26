@@ -1806,6 +1806,23 @@ export default function KnowledgeGraphPage() {
                       mastery={visibleMastery}
                       selected={selected}
                       isOwner={isOwner}
+                      onOpenConcept={(conceptId) => {
+                        if (
+                          !graph?.concepts.some(
+                            (concept) => concept.id === conceptId,
+                          )
+                        ) {
+                          return;
+                        }
+
+                        setMode("relations");
+                        setConceptFocusEnabled(false);
+
+                        setSelected({
+                          kind: "concept",
+                          id: conceptId,
+                        });
+                      }}
                     />
                   )}
 

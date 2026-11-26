@@ -3424,3 +3424,240 @@ background 0.15s ease;
     padding: 16px;
   }
 }
+
+
+/* MASTERY RECOMMENDATIONS */
+
+.kg-mastery-side > .kg-mastery-details {
+  max-height: 58%;
+  overflow-y: auto;
+}
+
+.kg-mastery-personal {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.kg-mastery-personal-heading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #4f46e5;
+}
+
+.kg-mastery-personal-heading h4 {
+  margin: 0;
+  color: #1f2937;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.kg-mastery-recommendation {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 13px;
+  background: #f8faff;
+  border: 1px solid #e0e7ff;
+  border-radius: 10px;
+}
+
+.kg-mastery-recommendation p,
+.kg-mastery-no-recommendation {
+  margin: 0;
+  color: #4b5563;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.kg-mastery-priority {
+  display: inline-flex;
+  padding: 5px 9px;
+  border-radius: 6px;
+  background: #f3f4f6;
+  color: #6b7280;
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.kg-mastery-priority--preliminary {
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.kg-mastery-priority--high {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.kg-mastery-priority--medium {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.kg-mastery-priority--low {
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.kg-mastery-prerequisite-risk {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 12px;
+  border-radius: 8px;
+  background: #fff7ed;
+}
+
+.kg-mastery-prerequisite-risk span {
+  color: #9a3412;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.kg-mastery-prerequisite-risk strong {
+  color: #9a3412;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.kg-mastery-personal-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.kg-mastery-personal-section h5 {
+  margin: 0;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.kg-mastery-personal-section > p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.kg-mastery-prerequisite-list,
+.kg-mastery-materials {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kg-mastery-prerequisite-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 9px;
+  width: 100%;
+  min-height: 37px;
+  padding: 9px 11px;
+  background: white;
+  border: 1px solid #e0e7ff;
+  border-radius: 8px;
+  color: #4338ca;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.kg-mastery-prerequisite-button:hover:not(:disabled) {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+}
+
+.kg-mastery-prerequisite-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.kg-mastery-prerequisite-button span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.kg-mastery-prerequisite-button svg {
+  flex-shrink: 0;
+}
+
+.kg-mastery-material-card {
+  min-width: 0;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 9px;
+}
+
+.kg-mastery-material-link {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: #4f46e5;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  text-decoration: none;
+}
+
+.kg-mastery-material-link span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.kg-mastery-material-link svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.kg-mastery-material-link:hover {
+  color: #4338ca;
+  text-decoration: underline;
+}
+
+.kg-mastery-material-card blockquote {
+  margin: 10px 0 0;
+  padding-left: 10px;
+  border-left: 2px solid #c7d2fe;
+  color: #6b7280;
+  font-size: 11px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.kg-mastery-topic-hint {
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+}
+
+@media (max-width: 1100px) {
+  .kg-mastery-side > .kg-mastery-details {
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+
+.kg-mastery-details .kg-mastery-coverage-warning {
+  padding: 12px 13px;
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.7;
+}

@@ -20,6 +20,7 @@ import {
   getGraphMasteryTone,
   type GraphMasteryData,
   type GraphMasteryTone,
+  getGraphTopicMasteryTone,
 } from "../../utils/knowledgeGraphMastery";
 
 import dagre from "@dagrejs/dagre";
@@ -150,7 +151,10 @@ function getNodeMastery(
     kind === "concept" ? mastery.concepts.get(id) : mastery.topics.get(id);
 
   return {
-    masteryTone: getGraphMasteryTone(value),
+    masteryTone:
+      kind === "topic"
+        ? getGraphTopicMasteryTone(value)
+        : getGraphMasteryTone(value),
     masteryLabel: getGraphMasteryLabel(value),
     masteryLimited: value?.dataStatus === "Limited",
   };
